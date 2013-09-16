@@ -1,0 +1,119 @@
+#!/bin/bash
+
+_CJDSCRIPT_HOME="$HOME/.cjdscript"
+_CJDSCRIPT_HOST="[fc13:6176:aaca:8c7f:9f55:924f:26b3:4b14]:82"
+_CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
+
+_BASH_SCRIPTS=('i_am_stupid.sh' 'ip6tables.sh')
+_PYTHON2_SCRIPTS=('cjdnsadmin' 'cjdnsadminmaker.py' 'cjdnslog' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'peerStats' 'pingAll.py' 'trashroutes')
+
+function test_bin {
+    if [ ! -f "${_CJDSCRIPT_HOME}/bin/${1}" ]; then return 1; fi
+}
+
+function setup_python {
+    #CREATE LOCAL LINKS TO PYTHON VERSIONS WITH NAMES STANDARD TO THIS SCRIPT
+    _PYTHON_BINARYNAMES=('python' 'python2' 'python3')
+    for _PYTHON_TESTNAME in ${_PYTHON_BINARYNAMES[@]}; do
+        _PYTHON_TESTPATH=$(sh -c "which $_PYTHON_TESTNAME 2>&1")
+        if [ $(echo "${_PYTHON_TESTPATH}" | grep -c -e "^which: ") = 0 ]; then ln -f -s "${_PYTHON_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/python$("${_PYTHON_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"; fi
+        unset _PYTHON_TESTPATH
+    done
+    unset _PYTHON_BINARYNAMES
+
+    #PYTHON2 (ONLY RUN IF PYTHON2 EXISTS)
+    test_bin "python2"
+    if [ ! $? = "1" ]; then
+        ln -f -s "$HOME/.cjdscript"/bin/python2 "$HOME/.cjdscript"/bin/python
+        for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
+            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" .
+        done
+    fi
+
+    #PYTHON3 (ONLY RUN IF PYTHON3 EXISTS) - (SINCE THERE ARE NO PYTHON3 SCRIPTS ATM, THIS SIMPLY TRIGGERS ITS REMOVAL)
+    test_bin "python3"
+    if [ ! $? = "1" ]; then
+        rm "${_CJDSCRIPT_HOME}/bin/python3"
+    fi
+}
+
+function setup_bash {
+    _BASH_TESTPATH=$(sh -c "which bash 2>&1")
+    if [ $(echo "${_BASH_TESTPATH}" | grep -c -e "^which: ") = 0 ]; then ln -f -s "${_BASH_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/bash$("${_BASH_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"; fi
+    unset _BASH_TESTPATH
+
+    test_bin "bash"
+    if [ ! $? = "1" ]; then
+        ln -f -s "$HOME/.cjdscript"/bin/bash "$HOME/.cjdscript"/bin/sh
+        for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
+            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" .
+        done
+    fi
+}
+
+function setup_scripts {
+    if [ ! -d "${_CJDSCRIPT_HOME}/download" ]; then mkdir -p "${_CJDSCRIPT_HOME}/download"; fi
+    if [ ! -d "${_CJDSCRIPT_HOME}/download/cjdns" ]; then
+        cd "${_CJDSCRIPT_HOME}/download"
+        git clone "${_CJDNS_REPO}"
+    else
+        cd "${_CJDSCRIPT_HOME}/download/cjdns"
+        git pull
+    fi
+
+    mkdir -p "${_CJDSCRIPT_HOME}/bin" && cd "${_CJDSCRIPT_HOME}/bin" || exit 1
+    setup_python
+    setup_bash
+}
+
+function list_scripts {
+    echo "Available Scripts:"
+
+    #BASH
+    test_bin "bash"
+    if [ ! $? = "1" ]; then
+        echo -e "\tBASH:"
+        for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
+            echo -e "\t\t${_BASH_SCRIPTNAME}"
+        done
+        echo
+        unset _BASH_SCRIPTNAME
+    fi
+
+    #PYTHON2
+    test_bin "python2"
+    if [ ! $? = "1" ]; then
+        echo -e "\tPYTHON2:"
+        for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
+            echo -e "\t\t${_PYTHON2_SCRIPTNAME}"
+        done
+        unset _PYTHON2_SCRIPTNAME
+    fi
+}
+
+function cjdscript_help {
+    echo -e "Usage: 'cjdscript argument' --or-- 'cjdscript scriptname argument(s)'\n"
+    echo "Arguments:"
+    echo -e "\t-h or --help: Show this help"
+    echo -e "\t-u or --update: Updates scripts and symlinks"
+    echo -e "\t-l or --list: Lists available scripts\n"
+    list_scripts
+}
+
+#STARTUP
+if [ "${1}" == "--update" -o "${1}" == "-u" ]; then
+    rm -rf "${_CJDSCRIPT_HOME}/bin"
+    setup_scripts
+elif [ "${1}" == "--list" -o "${1}" == "-l" ]; then
+    list_scripts
+elif [ "${1}" == "--help" -o "${1}" == "-h" ]; then
+    cjdscript_help
+elif [ ! -d "${_CJDSCRIPT_HOME}/bin" ]; then
+    setup_scripts
+elif [ ! -z "${1}" ]; then
+    PATH="${_CJDSCRIPT_HOME}/bin":$PATH
+    "$@"
+else
+    echo -e "Syntax Error\n"
+    cjdscript_help
+fi
