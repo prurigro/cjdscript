@@ -1,7 +1,6 @@
 #!/bin/bash
 
 _CJDSCRIPT_HOME="$HOME/.cjdscript"
-_CJDSCRIPT_HOST="[fc13:6176:aaca:8c7f:9f55:924f:26b3:4b14]:82"
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
 _BASH_SCRIPTS=('i_am_stupid.sh' 'ip6tables.sh')
