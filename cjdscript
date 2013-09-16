@@ -1,6 +1,7 @@
 #!/bin/bash
 
 _CJDSCRIPT_HOME="$HOME/.cjdscript"
+_CJDSCRIPT_HOST="[fc13:6176:aaca:8c7f:9f55:924f:26b3:4b14]:82"
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
 _BASH_SCRIPTS=('i_am_stupid.sh' 'ip6tables.sh')
@@ -14,8 +15,10 @@ function setup_python {
     #CREATE LOCAL LINKS TO PYTHON VERSIONS WITH NAMES STANDARD TO THIS SCRIPT
     _PYTHON_BINARYNAMES=('python' 'python2' 'python3')
     for _PYTHON_TESTNAME in ${_PYTHON_BINARYNAMES[@]}; do
-        _PYTHON_TESTPATH=$(sh -c "which $_PYTHON_TESTNAME 2>&1")
-        if [ $(echo "${_PYTHON_TESTPATH}" | grep -c -e "^which: ") = 0 ]; then ln -f -s "${_PYTHON_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/python$("${_PYTHON_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"; fi
+        _PYTHON_TESTPATH=$(type -p $_PYTHON_TESTNAME)
+        if [ ! -z "${_PYTHON_TESTPATH}" ]; then
+            ln -f -s "${_PYTHON_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/python$("${_PYTHON_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"
+        fi
         unset _PYTHON_TESTPATH
     done
     unset _PYTHON_BINARYNAMES
@@ -37,13 +40,16 @@ function setup_python {
 }
 
 function setup_bash {
-    _BASH_TESTPATH=$(sh -c "which bash 2>&1")
-    if [ $(echo "${_BASH_TESTPATH}" | grep -c -e "^which: ") = 0 ]; then ln -f -s "${_BASH_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/bash$("${_BASH_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"; fi
+    _BASH_TESTPATH=$(type -p bash)
+    if [ ! -z "${_BASH_TESTPATH}" ]; then
+        ln -f -s "${_BASH_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/bash$("${_BASH_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"
+    fi
     unset _BASH_TESTPATH
 
     test_bin "bash"
     if [ ! $? = "1" ]; then
-        ln -f -s "$HOME/.cjdscript"/bin/bash "$HOME/.cjdscript"/bin/sh
+        ln -f -s "$HOME/.cjdscript"/bin/bash "$HOME/.cjdscript/bin/sh"
+        ln -f -s "$HOME/.cjdscript"/bin/bash "$HOME/.cjdscript/bin/sh -e"
         for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
             ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" .
         done
@@ -110,8 +116,14 @@ elif [ "${1}" == "--help" -o "${1}" == "-h" ]; then
 elif [ ! -d "${_CJDSCRIPT_HOME}/bin" ]; then
     setup_scripts
 elif [ ! -z "${1}" ]; then
-    PATH="${_CJDSCRIPT_HOME}/bin":$PATH
-    "$@"
+    test_bin "${1}"
+    if [ ! $? = "1" ]; then
+        PATH="${_CJDSCRIPT_HOME}/bin":$PATH
+        "$@"
+    else
+        echo -e "Missing Script Error: ${1} does not exist\n"
+        cjdscript_help
+    fi
 else
     echo -e "Syntax Error\n"
     cjdscript_help
