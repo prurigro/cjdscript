@@ -69,6 +69,8 @@ function setup_scripts {
     mkdir -p "${_CJDSCRIPT_HOME}/bin" && cd "${_CJDSCRIPT_HOME}/bin" || exit 1
     setup_python
     setup_bash
+
+    cjdscript_help
 }
 
 function list_scripts {
