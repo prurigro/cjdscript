@@ -4,7 +4,7 @@ _CJDSCRIPT_HOME="$HOME/.cjdscript"
 _CJDSCRIPT_HOST="[fc13:6176:aaca:8c7f:9f55:924f:26b3:4b14]:82"
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
-_BASH_SCRIPTS=('i_am_stupid.sh' 'ip6tables.sh')
+_BASH_SCRIPTS=('ip6tables.sh')
 _PYTHON2_SCRIPTS=('cjdnsadmin' 'cjdnsadminmaker.py' 'cjdnslog' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'peerStats' 'pingAll.py' 'trashroutes')
 
 function test_bin {
