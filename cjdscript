@@ -1,11 +1,11 @@
 #!/bin/bash
 
 _CJDSCRIPT_HOME="$HOME/.cjdscript"
-_CJDSCRIPT_HOST="[fc13:6176:aaca:8c7f:9f55:924f:26b3:4b14]:82"
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
 _BASH_SCRIPTS=('ip6tables.sh')
 _PYTHON2_SCRIPTS=('cjdnsadmin' 'cjdnsadminmaker.py' 'cjdnslog' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'peerStats' 'pingAll.py' 'trashroutes')
+_BINARIES=('privatetopublic' 'publictoip6')
 
 function test_bin {
     if [ ! -f "${_CJDSCRIPT_HOME}/bin/${1}" ]; then return 1; fi
@@ -19,9 +19,7 @@ function setup_python {
         if [ ! -z "${_PYTHON_TESTPATH}" ]; then
             ln -f -s "${_PYTHON_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/python$("${_PYTHON_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"
         fi
-        unset _PYTHON_TESTPATH
     done
-    unset _PYTHON_BINARYNAMES
 
     #PYTHON2 (ONLY RUN IF PYTHON2 EXISTS)
     test_bin "python2"
@@ -44,7 +42,6 @@ function setup_bash {
     if [ ! -z "${_BASH_TESTPATH}" ]; then
         ln -f -s "${_BASH_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/bash$("${_BASH_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"
     fi
-    unset _BASH_TESTPATH
 
     test_bin "bash"
     if [ ! $? = "1" ]; then
@@ -54,6 +51,19 @@ function setup_bash {
             ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" .
         done
     fi
+}
+
+function setup_binaries {
+    if [ -d "${_CJDSCRIPT_HOME}/download/cjdns/build" ]; then
+        sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./clean"
+    fi
+    sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./do"
+
+    for _BINARY in ${_BINARIES[@]}; do
+        if [ -f "${_CJDSCRIPT_HOME}/download/cjdns/build/${_BINARY}" ]; then
+            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/build/${_BINARY}" .
+        fi
+    done
 }
 
 function setup_scripts {
@@ -69,6 +79,7 @@ function setup_scripts {
     mkdir -p "${_CJDSCRIPT_HOME}/bin" && cd "${_CJDSCRIPT_HOME}/bin" || exit 1
     setup_python
     setup_bash
+    setup_binaries
 
     echo -e "\nThe cjdscript configuration directory @ ${_CJDSCRIPT_HOME} has been configured."
     echo -e "Ensure cjdns is installed and running before using cjdscript with the following syntax:\n"
@@ -81,23 +92,39 @@ function list_scripts {
     #BASH
     test_bin "bash"
     if [ ! $? = "1" ]; then
-        echo -e "\tBASH:"
         for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
             echo -e "\t\t${_BASH_SCRIPTNAME}"
         done
-        echo
-        unset _BASH_SCRIPTNAME
     fi
 
     #PYTHON2
     test_bin "python2"
     if [ ! $? = "1" ]; then
-        echo -e "\tPYTHON2:"
         for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
             echo -e "\t\t${_PYTHON2_SCRIPTNAME}"
         done
-        unset _PYTHON2_SCRIPTNAME
     fi
+
+    #BINARIES
+    if [ -d "${_CJDSCRIPT_HOME}/download/cjdns/build" ]; then
+        for _BINARY in ${_BINARIES[@]}; do
+            echo -e "\t\t${_BINARY}"
+        done
+    fi
+    
+    #EXTRAS
+    test_bin publictoip6; if [ ! $? = "1" ]; then
+        test_bin peerStats; if [ ! $? = "1" ]; then
+            echo -e "\t\tonline-peers"
+        fi
+    fi
+}
+
+function online_peers {
+    cd ${_CJDSCRIPT_HOME}/bin
+    for peer in $(./python peerStats | sed 's/[[:space:]]in[[:space:]]//g;s/[[:space:]]out[[:space:]]//g;s/[[:space:]][0-9\.]*//g;s/\.k/\.k\^/g'); do
+        echo "$(./publictoip6 $(echo "${peer}" | sed 's/\^.*//g')) $(echo ${peer} | sed 's/\^/ /g')"
+    done
 }
 
 function cjdscript_help {
@@ -115,20 +142,29 @@ if [ "${1}" == "--update" -o "${1}" == "-u" ]; then
     setup_scripts
 elif [ "${1}" == "--list" -o "${1}" == "-l" ]; then
     list_scripts
-elif [ "${1}" == "--help" -o "${1}" == "-h" ]; then
+elif [ "${1}" == "--help" -o "${1}" == "-h" -o -z "${1}" ]; then
     cjdscript_help
 elif [ ! -d "${_CJDSCRIPT_HOME}/bin" ]; then
     setup_scripts
-elif [ ! -z "${1}" ]; then
+elif [ ! -z "${1}" -a $(echo "${1}" | grep -E -c "^-") = 0 ]; then
+    if [ "${1}" = "online-peers" ]; then
+        test_bin publictoip6; if [ ! $? = "1" ]; then
+            test_bin peerStats; if [ ! $? = "1" ]; then
+                online_peers
+                exit 0
+            fi
+        fi
+    fi
+
     test_bin "${1}"
     if [ ! $? = "1" ]; then
         PATH="${_CJDSCRIPT_HOME}/bin":$PATH
         "$@"
     else
-        echo -e "Missing Script Error: ${1} does not exist\n"
+        echo -e "Missing Script Error: \"${1}\" does not exist\n"
         cjdscript_help
     fi
 else
-    echo -e "Syntax Error\n"
+    echo -e "Syntax Error: \"$@\" is not a valid argument\n"
     cjdscript_help
 fi
