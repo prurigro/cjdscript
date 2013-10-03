@@ -4,7 +4,7 @@ _CJDSCRIPT_HOME="$HOME/.cjdscript"
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
 _BASH_SCRIPTS=('ip6tables.sh')
-_PYTHON2_SCRIPTS=('cjdnsadmin' 'cjdnsadminmaker.py' 'cjdnslog' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'peerStats' 'pingAll.py' 'trashroutes')
+_PYTHON2_SCRIPTS=('cjdnsadmin' 'cjdnsadminmaker.py' 'cjdnslog' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'peerStats' 'pingAll.py' 'sessionStats' 'trashroutes')
 _BINARIES=('privatetopublic' 'publictoip6')
 
 function test_bin {
@@ -111,20 +111,6 @@ function list_scripts {
             echo -e "\t\t${_BINARY}"
         done
     fi
-    
-    #EXTRAS
-    test_bin publictoip6; if [ ! $? = "1" ]; then
-        test_bin peerStats; if [ ! $? = "1" ]; then
-            echo -e "\t\tonline-peers"
-        fi
-    fi
-}
-
-function online_peers {
-    cd ${_CJDSCRIPT_HOME}/bin
-    for peer in $(./python peerStats | sed 's/[[:space:]]in[[:space:]]//g;s/[[:space:]]out[[:space:]]//g;s/[[:space:]][0-9\.]*//g;s/\.k/\.k\^/g'); do
-        echo "$(./publictoip6 $(echo "${peer}" | sed 's/\^.*//g')) $(echo ${peer} | sed 's/\^/ /g')"
-    done
 }
 
 function cjdscript_help {
@@ -147,15 +133,6 @@ elif [ "${1}" == "--help" -o "${1}" == "-h" -o -z "${1}" ]; then
 elif [ ! -d "${_CJDSCRIPT_HOME}/bin" ]; then
     setup_scripts
 elif [ ! -z "${1}" -a $(echo "${1}" | grep -E -c "^-") = 0 ]; then
-    if [ "${1}" = "online-peers" ]; then
-        test_bin publictoip6; if [ ! $? = "1" ]; then
-            test_bin peerStats; if [ ! $? = "1" ]; then
-                online_peers
-                exit 0
-            fi
-        fi
-    fi
-
     test_bin "${1}"
     if [ ! $? = "1" ]; then
         PATH="${_CJDSCRIPT_HOME}/bin":$PATH
