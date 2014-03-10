@@ -31,6 +31,7 @@ function setup_bash {
 function setup_binaries {
     test_bin "python"
     if [ ! $? = "1" ]; then
+        type node >/dev/null 2>&1 || (echo "Node.js is required to build binaries" && return 1)
         sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./clean"
         PATH="${_CJDSCRIPT_HOME}/bin:${PATH}" sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./do"
 
