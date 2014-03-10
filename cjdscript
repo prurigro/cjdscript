@@ -1,14 +1,57 @@
 #!/bin/bash
 
-_CJDSCRIPT_HOME="$HOME/.cjdscript"
+_CJDSCRIPT_HOME="${HOME}/.cjdscript"
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
 _BASH_SCRIPTS=('ip6tables.sh')
-_PYTHON2_SCRIPTS=('cjdnsadmin' 'cjdnsadminmaker.py' 'cjdnslog' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'peerStats' 'pingAll.py' 'sessionStats' 'trashroutes')
-_BINARIES=('privatetopublic' 'publictoip6')
+_BINARIES=('benc2json' 'cleanconfig' 'dnsserv' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
+_NODEJS_SCRIPTS=('dumptable.js' 'getLinks.js' 'peerStats.js')
+_PYTHON2_SCRIPTS=('cjdnsadmin' 'cjdnsadminmaker.py' 'cjdnslog' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'getLinks' 'ip6topk' 'peerStats' 'pingAll.py' 'pktoip6' 'sessionStats' 'trashroutes')
 
 function test_bin {
     if [ ! -f "${_CJDSCRIPT_HOME}/bin/${1}" ]; then return 1; fi
+}
+
+function setup_bash {
+    _BASH_TESTPATH=$(type -p bash)
+    if [ ! -z "${_BASH_TESTPATH}" ]; then
+        ln -f -s "${_BASH_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/bash$("${_BASH_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"
+    fi
+
+    test_bin "bash"
+    if [ ! $? = "1" ]; then
+        ln -f -s "${HOME}/.cjdscript"/bin/bash "${HOME}/.cjdscript/bin/sh"
+        ln -f -s "${HOME}/.cjdscript"/bin/bash "${HOME}/.cjdscript/bin/sh -e"
+        for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
+            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" .
+        done
+    fi
+}
+
+function setup_binaries {
+    test_bin "python"
+    if [ ! $? = "1" ]; then
+        sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./clean"
+        PATH="${_CJDSCRIPT_HOME}/bin:${PATH}" sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./do"
+
+        for _BINARY in ${_BINARIES[@]}; do
+            if [ -f "${_CJDSCRIPT_HOME}/download/cjdns/${_BINARY}" ]; then
+                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/${_BINARY}" .
+            fi
+        done
+    else
+        echo "Python is required to build binaries"
+    fi
+}
+
+function setup_node {
+    type node >/dev/null 2>&1 || return 1
+
+    for _SCRIPT in ${_NODEJS_SCRIPTS[@]}; do
+        if [ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_SCRIPT}" ]; then
+            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_SCRIPT}" .
+        fi
+    done
 }
 
 function setup_python {
@@ -24,7 +67,7 @@ function setup_python {
     #PYTHON2 (ONLY RUN IF PYTHON2 EXISTS)
     test_bin "python2"
     if [ ! $? = "1" ]; then
-        ln -f -s "$HOME/.cjdscript"/bin/python2 "$HOME/.cjdscript"/bin/python
+        ln -f -s "${HOME}/.cjdscript"/bin/python2 "${HOME}/.cjdscript"/bin/python
         for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
             ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" .
         done
@@ -35,35 +78,6 @@ function setup_python {
     if [ ! $? = "1" ]; then
         rm "${_CJDSCRIPT_HOME}/bin/python3"
     fi
-}
-
-function setup_bash {
-    _BASH_TESTPATH=$(type -p bash)
-    if [ ! -z "${_BASH_TESTPATH}" ]; then
-        ln -f -s "${_BASH_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/bash$("${_BASH_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"
-    fi
-
-    test_bin "bash"
-    if [ ! $? = "1" ]; then
-        ln -f -s "$HOME/.cjdscript"/bin/bash "$HOME/.cjdscript/bin/sh"
-        ln -f -s "$HOME/.cjdscript"/bin/bash "$HOME/.cjdscript/bin/sh -e"
-        for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
-            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" .
-        done
-    fi
-}
-
-function setup_binaries {
-    if [ -d "${_CJDSCRIPT_HOME}/download/cjdns/build" ]; then
-        sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./clean"
-    fi
-    sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./do"
-
-    for _BINARY in ${_BINARIES[@]}; do
-        if [ -f "${_CJDSCRIPT_HOME}/download/cjdns/build/${_BINARY}" ]; then
-            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/build/${_BINARY}" .
-        fi
-    done
 }
 
 function setup_scripts {
@@ -77,8 +91,9 @@ function setup_scripts {
     fi
 
     mkdir -p "${_CJDSCRIPT_HOME}/bin" && cd "${_CJDSCRIPT_HOME}/bin" || exit 1
-    setup_python
     setup_bash
+    setup_node
+    setup_python
     setup_binaries
 
     echo -e "\nThe cjdscript configuration directory @ ${_CJDSCRIPT_HOME} has been configured."
@@ -97,6 +112,14 @@ function list_scripts {
         done
     fi
 
+    #NODEJS
+    for _NODEJS_SCRIPTNAME in ${_NODEJS_SCRIPTS[@]}; do
+        test_bin "$_NODEJS_SCRIPTNAME"
+        if [ ! $? = "1" ]; then
+            echo -e "\t\t${_NODEJS_SCRIPTNAME}"
+        fi
+    done
+
     #PYTHON2
     test_bin "python2"
     if [ ! $? = "1" ]; then
@@ -106,11 +129,12 @@ function list_scripts {
     fi
 
     #BINARIES
-    if [ -d "${_CJDSCRIPT_HOME}/download/cjdns/build" ]; then
-        for _BINARY in ${_BINARIES[@]}; do
+    for _BINARY in ${_BINARIES[@]}; do
+        test_bin "$_BINARY"
+        if [ ! $? = "1" ]; then
             echo -e "\t\t${_BINARY}"
-        done
-    fi
+        fi
+    done
 }
 
 function cjdscript_help {
@@ -135,7 +159,7 @@ elif [ ! -d "${_CJDSCRIPT_HOME}/bin" ]; then
 elif [ ! -z "${1}" -a $(echo "${1}" | grep -E -c "^-") = 0 ]; then
     test_bin "${1}"
     if [ ! $? = "1" ]; then
-        PATH="${_CJDSCRIPT_HOME}/bin":$PATH
+        PATH="${_CJDSCRIPT_HOME}/bin:${PATH}"
         "$@"
     else
         echo -e "Missing Script Error: \"${1}\" does not exist\n"
