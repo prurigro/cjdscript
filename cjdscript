@@ -4,7 +4,7 @@ _CJDSCRIPT_HOME="${HOME}/.cjdscript"
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
 _BASH_SCRIPTS=('ip6tables.sh')
-_BINARIES=('benc2json' 'cleanconfig' 'dnsserv' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
+_BINARIES=('benc2json' 'cjdroute' 'cleanconfig' 'dnsserv' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
 _NODEJS_SCRIPTS=('dumptable.js' 'getLinks.js' 'peerStats.js')
 _PYTHON2_SCRIPTS=('cjdnsadmin' 'cjdnsadminmaker.py' 'cjdnslog' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'getLinks' 'ip6topk' 'peerStats' 'pingAll.py' 'pktoip6' 'sessionStats' 'trashroutes')
 
