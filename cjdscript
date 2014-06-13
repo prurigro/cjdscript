@@ -1,12 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 _CJDSCRIPT_HOME="${HOME}/.cjdscript"
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
 _BASH_SCRIPTS=('ip6tables.sh')
-_BINARIES=('benc2json' 'cjdroute' 'cleanconfig' 'dnsserv' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
-_NODEJS_SCRIPTS=('dumptable.js' 'getLinks.js' 'peerStats.js')
-_PYTHON2_SCRIPTS=('cjdnsadmin' 'cjdnsadminmaker.py' 'cjdnslog' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'getLinks' 'ip6topk' 'peerStats' 'pingAll.py' 'pktoip6' 'sessionStats' 'trashroutes')
+_BINARIES=('cjdroute' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
+_NODEJS_SCRIPTS=('dumptable.js' 'getLinks.js' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'pingAll.js' 'pingflood.js')
+_PYTHON2_SCRIPTS=('cjdnsadminmaker.py' 'cjdnslog' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'getLinks' 'graphStats' 'ip6topk' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
 
 function test_bin {
     if [ ! -f "${_CJDSCRIPT_HOME}/bin/${1}" ]; then return 1; fi
@@ -49,6 +49,8 @@ function setup_node {
     type node >/dev/null 2>&1 || return 1
 
     for _SCRIPT in ${_NODEJS_SCRIPTS[@]}; do
+        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/lib" .
+        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/cjdnsadmin" ..
         if [ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_SCRIPT}" ]; then
             ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_SCRIPT}" .
         fi
@@ -69,6 +71,7 @@ function setup_python {
     test_bin "python2"
     if [ ! $? = "1" ]; then
         ln -f -s "${HOME}/.cjdscript"/bin/python2 "${HOME}/.cjdscript"/bin/python
+        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/cjdnsadmin" .
         for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
             ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" .
         done
@@ -97,8 +100,8 @@ function setup_scripts {
     setup_python
     setup_binaries
 
-    echo -e "\nThe cjdscript configuration directory @ ${_CJDSCRIPT_HOME} has been configured."
-    echo -e "Ensure cjdns is installed and running before using cjdscript with the following syntax:\n"
+    echo -e "\nFinished setting up the configuration directory @ ${_CJDSCRIPT_HOME}."
+    echo -e "\nYou can now use cjdscript with the following syntax:"
     cjdscript_help
 }
 
