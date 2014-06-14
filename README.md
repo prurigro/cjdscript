@@ -2,11 +2,21 @@
 
 ## About ##
 
-This script maintains and executes the collection of (working) scripts included with cjdns.
+This script maintains and executes the collection of (working) tools included in the [cjdns repo](https://github.com/cjdelisle/cjdns).
 
 ## Requirements ##
 
-This script requires git and the collection of coreutils, and the scripts you can run using it require a running copy of cjdns.
+### Needed ###
+
+* Bash
+* Unix core utils (grep, sed, etc.)
+
+### Optional (Required for some scripts) ###
+
+* The ~/.cjdnsadmin file configured (for scripts that access certain admin features)
+* GCC (to compile binaries)
+* Python 2 (for python scripts and to compile binaries)
+* Node.js (for node.js scripts and to compile binaries)
 
 ## Usage ##
 
