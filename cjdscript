@@ -1,14 +1,82 @@
 #!/usr/bin/env bash
 
 _CJDSCRIPT_HOME="${HOME}/.cjdscript"
-_CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
-_DIRVERSION="1"
+_CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
+# _PYTHON_PKG=('1.x' 'sha512sum' 'url' 'name')
+
+_DIRVERSION="2"
 
 _BASH_SCRIPTS=('ip6tables.sh')
 _BINARIES=('cjdroute' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
 _NODEJS_SCRIPTS=('dumptable.js' 'getLinks.js' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'pingAll.js' 'pingflood.js')
-_PYTHON2_SCRIPTS=('cjdnsadminmaker.py' 'cjdnslog' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'getLinks' 'graphStats' 'ip6topk' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
+_PYTHON2_SCRIPTS=('cjdnsadminmaker.py' 'cjdnslog' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'graphStats' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
+
+export PATH="${_CJDSCRIPT_HOME}/bin:${PATH}"
+export PYTHON_PATH="${_CJDSCRIPT_HOME}/lib/python2.7/site-packages"
+
+function python2_pkg {
+    PKG_NAME=$(echo "$1" | sed 's|.*/||g')
+    PKG_DIR="${_CJDSCRIPT_HOME}/download/python2"
+    PKG_VER="$2"
+    PKG_URL="${4}-${PKG_VER}.tar.gz"
+    PKG_SUM="$3"
+
+    [[ -d "${PKG_DIR}" ]] || install -d "${PKG_DIR}"
+    [[ -d "${PKG_DIR}/${PKG_NAME}" ]] && rm -rf "${PKG_DIR}/${PKG_NAME}"
+    [[ -f "${PKG_DIR}/${PKG_NAME}-${PKG_VER}.tar.gz" ]] || curl -sSL "$PKG_URL" > "${PKG_DIR}/${PKG_NAME}-${PKG_VER}.tar.gz"
+
+    if [[ $(sha512sum "${PKG_DIR}/${PKG_NAME}-${PKG_VER}.tar.gz" | sed 's|\ .*||') = $PKG_SUM ]]; then
+        install -d "${PKG_DIR}/${PKG_NAME}"
+        tar zxf "${PKG_DIR}/${PKG_NAME}-${PKG_VER}.tar.gz" --strip-components 1 -C "${PKG_DIR}/${PKG_NAME}"
+    else
+        echo "Error: invalid checksum for python2 decorator"
+        rm "${PKG_DIR}/${PKG_NAME}-${PKG_VER}.tar.gz"
+        return 1
+    fi
+    python "${PKG_DIR}/${PKG_NAME}/setup.py" install --prefix="$PYTHON_PATH"
+    [[ -d "${PKG_DIR}/${PKG_NAME}" ]] && rm -rf "${PKG_DIR}/${PKG_NAME}"
+
+    return 0
+}
+
+function setup_python {
+    # CREATE LOCAL LINKS TO PYTHON VERSIONS WITH NAMES STANDARD TO THIS SCRIPT
+    _PYTHON_BINARYNAMES=('python' 'python2' 'python3')
+    for _PYTHON_TESTNAME in ${_PYTHON_BINARYNAMES[@]}; do
+        _PYTHON_TESTPATH=$(type -P $_PYTHON_TESTNAME)
+        if [ ! -z "${_PYTHON_TESTPATH}" ]; then
+            ln -f -s "${_PYTHON_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/python$("${_PYTHON_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"
+        fi
+    done
+
+    [[ -d "$PYTHON_PATH" ]] && rm -rf "$PYTHON_PATH"
+    install -d "$PYTHON_PATH"
+
+    # PYTHON3 (ONLY RUN IF PYTHON3 EXISTS)
+    if [ -h "${_CJDSCRIPT_HOME}/bin/python3" ]; then
+        # REMOVE PYTHON3 SINCE NO SCRIPTS USE IT
+        rm "${_CJDSCRIPT_HOME}/bin/python3"
+    fi
+
+    # PYTHON2 (ONLY RUN IF PYTHON2 EXISTS)
+    if [ -f "${_CJDSCRIPT_HOME}/bin/python2" ]; then
+        # INSTALL PYTHON2 AS PYTHON
+        ln -f -s "${_CJDSCRIPT_HOME}/bin/python2" "${_CJDSCRIPT_HOME}/bin/python"
+
+        # INSTALL PYTHON2 LIBRARIES
+        [[ -d "${_CJDSCRIPT_HOME}/download/python2" ]] && rm -rf "${_CJDSCRIPT_HOME}/download/python2"
+        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/cjdnsadmin" "${PYTHON_PATH}/cjdnsadmin"
+        # python2_pkg "${PYTHON_PKG[0]}" "${PYTHON_PKG[0]}" "${PYTHON_PKG[1]}" "${PYTHON_PKG[2]}" "${PYTHON_PKG[3]}"
+
+        # INSTALL PYTHON2 SCRIPTS
+        for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
+            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" .
+        done
+    else
+        echo "Not including python2 scripts (python2 is not available)"
+    fi
+}
 
 function setup_bash {
     _BASH_TESTPATH=$(type -P bash)
@@ -17,8 +85,8 @@ function setup_bash {
     fi
 
     if [ -f "${_CJDSCRIPT_HOME}/bin/bash" ]; then
-        ln -f -s "${HOME}/.cjdscript"/bin/bash "${HOME}/.cjdscript/bin/sh"
-        ln -f -s "${HOME}/.cjdscript"/bin/bash "${HOME}/.cjdscript/bin/sh -e"
+        ln -f -s "${_CJDSCRIPT_HOME}/bin/bash" "${_CJDSCRIPT_HOME}/bin/sh"
+        ln -f -s "${_CJDSCRIPT_HOME}/bin/bash" "${_CJDSCRIPT_HOME}/bin/sh -e"
         for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
             ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" .
         done
@@ -41,36 +109,11 @@ function setup_node {
     fi
 }
 
-function setup_python {
-    # CREATE LOCAL LINKS TO PYTHON VERSIONS WITH NAMES STANDARD TO THIS SCRIPT
-    _PYTHON_BINARYNAMES=('python' 'python2' 'python3')
-    for _PYTHON_TESTNAME in ${_PYTHON_BINARYNAMES[@]}; do
-        _PYTHON_TESTPATH=$(type -P $_PYTHON_TESTNAME)
-        if [ ! -z "${_PYTHON_TESTPATH}" ]; then
-            ln -f -s "${_PYTHON_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/python$("${_PYTHON_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"
-        fi
-    done
-
-    # PYTHON2 (ONLY RUN IF PYTHON2 EXISTS)
-    if [ -f "${_CJDSCRIPT_HOME}/bin/python2" ]; then
-        ln -f -s "${HOME}/.cjdscript/bin/python2" "${HOME}/.cjdscript/bin/python"
-        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/cjdnsadmin" .
-        for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
-            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" .
-        done
-    else
-        echo "Not including python 2.x scripts (python2 is not available)"
-    fi
-
-    # PYTHON3 (ONLY RUN IF PYTHON3 EXISTS) - (SINCE THERE ARE NO PYTHON3 SCRIPTS ATM, THIS SIMPLY TRIGGERS ITS REMOVAL)
-    [[ -f "${_CJDSCRIPT_HOME}/bin/python3" ]] && rm "${_CJDSCRIPT_HOME}/bin/python3"
-}
-
 function setup_binaries {
     if [ -f "${_CJDSCRIPT_HOME}/bin/python" ]; then
         type -P node >/dev/null 2>&1 || (echo "Not building binaries (node.js is not available)" && return 1)
         sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./clean"
-        PATH="${_CJDSCRIPT_HOME}/bin:${PATH}" sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./do"
+        sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./do"
 
         for _BINARY in ${_BINARIES[@]}; do
             if [ -f "${_CJDSCRIPT_HOME}/download/cjdns/${_BINARY}" ]; then
@@ -133,7 +176,7 @@ function list_scripts {
 
     # PYTHON2
     if [ -f "${_CJDSCRIPT_HOME}/bin/python2" ]; then
-        echo -n -e "\tPYTHON 2:"
+        echo -n -e "\tPYTHON2:"
         for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
             [[ -f "${_CJDSCRIPT_HOME}/bin/${_PYTHON2_SCRIPTNAME}" ]] && echo -n -e " ${_PYTHON2_SCRIPTNAME}"
         done
@@ -174,7 +217,7 @@ elif [ "${1}" = "--help" -o "${1}" = "-h" -o -z "${1}" ]; then
     cjdscript_help
 elif [ ! -z "${1}" -a $(echo "${1}" | grep -E -c "^-") = 0 ]; then
     if [[ -f "${_CJDSCRIPT_HOME}/bin/${1}" ]]; then
-        PATH="${_CJDSCRIPT_HOME}/bin:${PATH}" "$@"
+        "$@"
     else
         echo -e "Error: \"${1}\" is not a valid command\n"
         cjdscript_help
