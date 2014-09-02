@@ -1,228 +1,270 @@
 #!/usr/bin/env bash
 
 _CJDSCRIPT_HOME="${HOME}/.cjdscript"
-
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
-# _PYTHON_PKG=('1.x' 'sha512sum' 'url' 'name')
 
-_DIRVERSION="2"
+_DIRVERSION="3"
 
-_BASH_SCRIPTS=('ip6tables.sh')
+_BASH_SCRIPTS=('cjdroid-build.sh' 'ip6tables.sh' 'run-cjdroute.bash')
 _BINARIES=('cjdroute' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
 _NODEJS_SCRIPTS=('dumptable.js' 'getLinks.js' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'pingAll.js' 'pingflood.js')
-_PYTHON2_SCRIPTS=('cjdnsadminmaker.py' 'cjdnslog' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'graphStats' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
+_PYTHON2_SCRIPTS=('cjdnsadminmaker.py' 'cjdnslog' 'drawgraph' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'graphStats' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
 
+APPNAME="${0##*/}"
 export PATH="${_CJDSCRIPT_HOME}/bin:${PATH}"
-export PYTHON_PATH="${_CJDSCRIPT_HOME}/lib/python2.7/site-packages"
-
-function python2_pkg {
-    PKG_NAME=$(echo "$1" | sed 's|.*/||g')
-    PKG_DIR="${_CJDSCRIPT_HOME}/download/python2"
-    PKG_VER="$2"
-    PKG_URL="${4}-${PKG_VER}.tar.gz"
-    PKG_SUM="$3"
-
-    [[ -d "${PKG_DIR}" ]] || install -d "${PKG_DIR}"
-    [[ -d "${PKG_DIR}/${PKG_NAME}" ]] && rm -rf "${PKG_DIR}/${PKG_NAME}"
-    [[ -f "${PKG_DIR}/${PKG_NAME}-${PKG_VER}.tar.gz" ]] || curl -sSL "$PKG_URL" > "${PKG_DIR}/${PKG_NAME}-${PKG_VER}.tar.gz"
-
-    if [[ $(sha512sum "${PKG_DIR}/${PKG_NAME}-${PKG_VER}.tar.gz" | sed 's|\ .*||') = $PKG_SUM ]]; then
-        install -d "${PKG_DIR}/${PKG_NAME}"
-        tar zxf "${PKG_DIR}/${PKG_NAME}-${PKG_VER}.tar.gz" --strip-components 1 -C "${PKG_DIR}/${PKG_NAME}"
-    else
-        echo "Error: invalid checksum for python2 decorator"
-        rm "${PKG_DIR}/${PKG_NAME}-${PKG_VER}.tar.gz"
-        return 1
-    fi
-    python "${PKG_DIR}/${PKG_NAME}/setup.py" install --prefix="$PYTHON_PATH"
-    [[ -d "${PKG_DIR}/${PKG_NAME}" ]] && rm -rf "${PKG_DIR}/${PKG_NAME}"
-
-    return 0
-}
+export PYTHON2_PATH="${_CJDSCRIPT_HOME}/lib/python2.7/site-packages"
 
 function setup_python {
-    # CREATE LOCAL LINKS TO PYTHON VERSIONS WITH NAMES STANDARD TO THIS SCRIPT
-    _PYTHON_BINARYNAMES=('python' 'python2' 'python3')
-    for _PYTHON_TESTNAME in ${_PYTHON_BINARYNAMES[@]}; do
-        _PYTHON_TESTPATH=$(type -P $_PYTHON_TESTNAME)
-        if [ ! -z "${_PYTHON_TESTPATH}" ]; then
-            ln -f -s "${_PYTHON_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/python$("${_PYTHON_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"
-        fi
-    done
+    _PYTHON2_BINPATH=$(type -P python2)
 
-    [[ -d "$PYTHON_PATH" ]] && rm -rf "$PYTHON_PATH"
-    install -d "$PYTHON_PATH"
+    if [ -n "$_PYTHON2_BINPATH" ]; then
+        # SETUP PYTHON LINKS
+        ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python2"
+        ln -f -s python2 "${_CJDSCRIPT_HOME}/bin/python"
 
-    # PYTHON3 (ONLY RUN IF PYTHON3 EXISTS)
-    if [ -h "${_CJDSCRIPT_HOME}/bin/python3" ]; then
-        # REMOVE PYTHON3 SINCE NO SCRIPTS USE IT
-        rm "${_CJDSCRIPT_HOME}/bin/python3"
-    fi
-
-    # PYTHON2 (ONLY RUN IF PYTHON2 EXISTS)
-    if [ -f "${_CJDSCRIPT_HOME}/bin/python2" ]; then
-        # INSTALL PYTHON2 AS PYTHON
-        ln -f -s "${_CJDSCRIPT_HOME}/bin/python2" "${_CJDSCRIPT_HOME}/bin/python"
-
-        # INSTALL PYTHON2 LIBRARIES
+        # INSTALL CJDNS PYTHON2 LIBRARIES
+        [[ -d "$PYTHON2_PATH" ]] && rm -rf "$PYTHON2_PATH"
+        install -d "$PYTHON2_PATH"
         [[ -d "${_CJDSCRIPT_HOME}/download/python2" ]] && rm -rf "${_CJDSCRIPT_HOME}/download/python2"
-        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/cjdnsadmin" "${PYTHON_PATH}/cjdnsadmin"
-        # python2_pkg "${PYTHON_PKG[0]}" "${PYTHON_PKG[0]}" "${PYTHON_PKG[1]}" "${PYTHON_PKG[2]}" "${PYTHON_PKG[3]}"
+        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/cjdnsadmin" "${PYTHON2_PATH}/cjdnsadmin"
 
         # INSTALL PYTHON2 SCRIPTS
+        cd "${_CJDSCRIPT_HOME}/bin"
         for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
-            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" .
+            [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" ]] \
+                && ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" . \
+                || echo "==> Warning: ${_PYTHON2_SCRIPTNAME} does not exist and won't be installed"
         done
     else
-        echo "Not including python2 scripts (python2 is not available)"
+        echo "==> Warning: Not including python2 scripts (python2 is not available)"
     fi
 }
 
 function setup_bash {
-    _BASH_TESTPATH=$(type -P bash)
-    if [ ! -z "${_BASH_TESTPATH}" ]; then
-        ln -f -s "${_BASH_TESTPATH}" "${_CJDSCRIPT_HOME}/bin/bash$("${_BASH_TESTPATH}" -V 2>&1 | sed 's/^[^0-9]*//;s/\..*//')"
-    fi
+    _BASH_BINPATH=$(type -P bash)
 
-    if [ -f "${_CJDSCRIPT_HOME}/bin/bash" ]; then
-        ln -f -s "${_CJDSCRIPT_HOME}/bin/bash" "${_CJDSCRIPT_HOME}/bin/sh"
-        ln -f -s "${_CJDSCRIPT_HOME}/bin/bash" "${_CJDSCRIPT_HOME}/bin/sh -e"
+    if [[ -n "$_BASH_BINPATH" ]]; then
+        # SETUP BASH LINKS
+        ln -f -s "$_BASH_BINPATH" "${_CJDSCRIPT_HOME}/bin/bash"
+        ln -f -s bash "${_CJDSCRIPT_HOME}/bin/sh"
+        ln -f -s bash "${_CJDSCRIPT_HOME}/bin/sh -e"
+
+        # SETUP BASH SCRIPTS
         for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
-            ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" .
+            if [ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" ]; then
+                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" .
+            elif [ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/android/${_BASH_SCRIPTNAME}" ]; then
+                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/android/${_BASH_SCRIPTNAME}" .
+            else
+                echo "==> Warning: ${_BASH_SCRIPTNAME} does not exist and won't be installed"
+            fi
         done
     else
-        echo "Not including bash scripts (bash is not available)"
+        echo "==> Warning: Not including bash scripts (bash is not available)"
     fi
 }
 
 function setup_node {
-    if [ $(type -P node) ]; then
+    _NODEJS_BINPATH=$(type -P node)
+    [[ -z "$_NODEJS_BINPATH" ]] && _NODEJS_BINPATH=$(type -P nodejs)
+
+    if [ -n "$_NODEJS_BINPATH" ]; then
+        # SETUP NODEJS LINKS
+        ln -s "$_NODEJS_BINPATH" "${_CJDSCRIPT_HOME}/bin/node"
+        ln -s node "${_CJDSCRIPT_HOME}/bin/nodejs"
+
+        # INSTALL NODEJS LIBRARIES
         ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/lib" .
         ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/cjdnsadmin" ..
-        for _SCRIPT in ${_NODEJS_SCRIPTS[@]}; do
-            if [ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_SCRIPT}" ]; then
-                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_SCRIPT}" .
-            fi
+
+        # SETUP NODEJS SCRIPTS
+        for _NODEJS_SCRIPTNAME in ${_NODEJS_SCRIPTS[@]}; do
+            [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_NODEJS_SCRIPTNAME}" ]] \
+                && ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_NODEJS_SCRIPTNAME}" . \
+                || echo "==> Warning: ${_NODEJS_SCRIPTNAME} does not exist and won't be installed"
         done
     else
-        echo "Not including node.js scripts (node is not available)"
+        echo "==> Warning: Not including node.js scripts (node/nodejs is not available)"
     fi
 }
 
 function setup_binaries {
-    if [ -f "${_CJDSCRIPT_HOME}/bin/python" ]; then
-        type -P node >/dev/null 2>&1 || (echo "Not building binaries (node.js is not available)" && return 1)
-        sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./clean"
-        sh -c "cd ${_CJDSCRIPT_HOME}/download/cjdns; ./do"
+    if [ -f "${_CJDSCRIPT_HOME}/bin/python2" -a -f "${_CJDSCRIPT_HOME}/bin/node" ]; then
+        # BUILD CJDNS
+        pushd ${_CJDSCRIPT_HOME}/download/cjdns >/dev/null 2>&1
+        echo "==> Building..."
+        sh "do" >/dev/null 2>&1
+        popd >/dev/null 2>&1
 
-        for _BINARY in ${_BINARIES[@]}; do
-            if [ -f "${_CJDSCRIPT_HOME}/download/cjdns/${_BINARY}" ]; then
-                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/${_BINARY}" .
-            fi
+        for _CJDNS_BINARYNAME in ${_BINARIES[@]}; do
+            [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/${_CJDNS_BINARYNAME}" ]] \
+                && ln -s "${_CJDSCRIPT_HOME}/download/cjdns/${_CJDNS_BINARYNAME}" . \
+                || echo "==> Warning: ${_CJDNS_BINARYNAME} does not exist and won't be installed"
         done
     else
-        echo "Not building binaries (python2 is not available)"
+        echo "==> Warning: Not building binaries (python2 is not available)"
     fi
 }
 
 function setup_scripts {
-    rm -rf "${_CJDSCRIPT_HOME}/bin"
-    install -d "${_CJDSCRIPT_HOME}/download"
+    echo "==> Setting up configuration directory..."
 
+    [[ ! -d "${_CJDSCRIPT_HOME}/bin" ]] && install -d "${_CJDSCRIPT_HOME}/download"
     if [ ! -d "${_CJDSCRIPT_HOME}/download/cjdns" ]; then
         cd "${_CJDSCRIPT_HOME}/download"
-        git clone "${_CJDNS_REPO}"
+        echo "\n==> Cloning repo..."
+        git clone "${_CJDNS_REPO}" >/dev/null 2>&1
     else
         cd "${_CJDSCRIPT_HOME}/download/cjdns"
-        echo "Updating repo..."
-        git pull
+        echo -e "==> Updating repo..."
+        git reset --hard >/dev/null 2>&1
+        git clean -dxf >/dev/null 2>&1
+        git pull >/dev/null 2>&1
     fi
 
+    # DELETE AND REMAKE THE BIN AND LIB DIRECTORIES IF THEY EXIST
+    [[ -d "${_CJDSCRIPT_HOME}/bin" ]] && rm -rf "${_CJDSCRIPT_HOME}/bin"
+    [[ -d "${_CJDSCRIPT_HOME}/lib" ]] && rm -rf "${_CJDSCRIPT_HOME}/lib"
     install -d "${_CJDSCRIPT_HOME}/bin"
+    install -d "${_CJDSCRIPT_HOME}/lib"
     cd "${_CJDSCRIPT_HOME}/bin"
 
+    # RUN SETUP FUNCTIONS
+    echo "==> Configuring executables and scripts..."
     setup_bash
     setup_node
     setup_python
     setup_binaries
 
+    # UPDATE DIRECTORY VERSION
     echo "$_DIRVERSION" > "${_CJDSCRIPT_HOME}/.dirver"
-    echo -e "\nFinished setting up the configuration directory @ ${_CJDSCRIPT_HOME}."
-    echo -e "\nYou can now use cjdscript with the following syntax:"
 
+    # OUTPUT INFORMATION, RUN HELP AND EXIT
+    echo -e "==> Finished update!\n"
+    echo "==> The cjdscript directory is: ${_CJDSCRIPT_HOME}"
     cjdscript_help
 }
 
 function list_scripts {
-    echo "Available Scripts:"
+    SCRIPTS_PER_LINE=4
+    echo
 
-    # BASH
+    # LIST BASH SCRIPTS
     if [ -f "${_CJDSCRIPT_HOME}/bin/bash" ]; then
-        echo -n -e "\tBASH:"
+        echo -n -e "BASH:\n "
+        COUNT=0
         for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
-            [[ -f "${_CJDSCRIPT_HOME}/bin/${_BASH_SCRIPTNAME}" ]] && echo -n -e " ${_BASH_SCRIPTNAME}"
+            if [ "$COUNT" = "$SCRIPTS_PER_LINE" ]; then
+                COUNT=1
+                echo -e -n "\n "
+            else
+                COUNT=$(expr $COUNT + 1)
+            fi
+            [[ -f "${_CJDSCRIPT_HOME}/bin/${_BASH_SCRIPTNAME}" ]] \
+                && echo -n -e " ${_BASH_SCRIPTNAME}"
         done
-        echo
+        echo -e "\n"
     fi
 
-    # NODEJS
+    # LIST NODEJS SCRIPTS
     if [ $(type -P node) ]; then
-        echo -n -e "\tNODE:"
+        echo -n -e "NODEJS:\n "
+        COUNT=0
         for _NODEJS_SCRIPTNAME in ${_NODEJS_SCRIPTS[@]}; do
-            [[ -f "${_CJDSCRIPT_HOME}/bin/${_NODEJS_SCRIPTNAME}" ]] && echo -n -e " ${_NODEJS_SCRIPTNAME}"
+            if [ "$COUNT" = "$SCRIPTS_PER_LINE" ]; then
+                COUNT=1
+                echo -e -n "\n "
+            else
+                COUNT=$(expr $COUNT + 1)
+            fi
+            [[ -f "${_CJDSCRIPT_HOME}/bin/${_NODEJS_SCRIPTNAME}" ]] \
+                && echo -n -e " ${_NODEJS_SCRIPTNAME}"
         done
-        echo
+        echo -e "\n"
     fi
 
-    # PYTHON2
+    # LIST PYTHON2 SCRIPTS
     if [ -f "${_CJDSCRIPT_HOME}/bin/python2" ]; then
-        echo -n -e "\tPYTHON2:"
+        echo -n -e "PYTHON2:\n "
+        COUNT=0
         for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
-            [[ -f "${_CJDSCRIPT_HOME}/bin/${_PYTHON2_SCRIPTNAME}" ]] && echo -n -e " ${_PYTHON2_SCRIPTNAME}"
+            if [ "$COUNT" = "$SCRIPTS_PER_LINE" ]; then
+                COUNT=1
+                echo -e -n "\n "
+            else
+                COUNT=$(expr $COUNT + 1)
+            fi
+            [[ -f "${_CJDSCRIPT_HOME}/bin/${_PYTHON2_SCRIPTNAME}" ]] \
+                && echo -n -e " ${_PYTHON2_SCRIPTNAME}"
         done
-        echo
+        echo -e "\n"
     fi
 
-    # BINARIES
+    # LIST CJDNS BINARIES
     if [ -f "${_CJDSCRIPT_HOME}/bin/cjdroute" ]; then
-        echo -n -e "\tBINARIES:"
-        for _BINARY in ${_BINARIES[@]}; do
-            [[ -f "${_CJDSCRIPT_HOME}/bin/${_BINARY}" ]] && echo -n -e " ${_BINARY}"
+        echo -n -e "BINARIES:\n "
+        COUNT=0
+        for CJDNS_BINARYNAME in ${_BINARIES[@]}; do
+            if [ "$COUNT" = "$SCRIPTS_PER_LINE" ]; then
+                COUNT=1
+                echo -e -n "\n "
+            else
+                COUNT=$(expr $COUNT + 1)
+            fi
+            [[ -f "${_CJDSCRIPT_HOME}/bin/${CJDNS_BINARYNAME}" ]] \
+                && echo -n -e " ${CJDNS_BINARYNAME}"
         done
         echo -e "\n"
     fi
 }
 
 function cjdscript_help {
-    echo -e "Usage: 'cjdscript argument' --or-- 'cjdscript scriptname argument(s)'\n"
-    echo "Arguments:"
-    echo -e "\t-h or --help: Show this help"
-    echo -e "\t-u or --update: Updates scripts and symlinks"
-    echo -e "\t-l or --list: Lists available scripts\n"
-    list_scripts
+    echo -e "\nUSAGE:\n  ${APPNAME} [OPTION]\n  ${APPNAME} [SCRIPTNAME] [OPTION] [OPTION...]\n"
+    echo "OPTIONS:"
+    echo -e "  -h | --help: Show this help"
+    echo -e "  -u | --update: Updates scripts and symlinks"
+    echo -e "  -l | --list: Lists available scripts\n"
 }
 
-# STARTUP
-if [ "${1}" = "--list" -o "${1}" = "-l" ]; then
-    list_scripts
-elif [ "${1}" = "--update" -o "${1}" = "-u" ]; then
-    setup_scripts
-elif [ ! -d "${_CJDSCRIPT_HOME}/bin" ]; then
-    setup_scripts
-elif [ ! -f "${_CJDSCRIPT_HOME}/.dirver" ]; then
-    setup_scripts
-elif [ ! $(cat "${_CJDSCRIPT_HOME}/.dirver") = $_DIRVERSION ]; then
-    setup_scripts
-elif [ "${1}" = "--help" -o "${1}" = "-h" -o -z "${1}" ]; then
+# FAIL IF NO ARGUMENTS ARE GIVEN
+if [ -z "$1" ]; then
+    echo -e "==> Error: ${APPNAME} must be run with a valid command"
     cjdscript_help
-elif [ ! -z "${1}" -a $(echo "${1}" | grep -E -c "^-") = 0 ]; then
-    if [[ -f "${_CJDSCRIPT_HOME}/bin/${1}" ]]; then
-        "$@"
-    else
-        echo -e "Error: \"${1}\" is not a valid command\n"
-        cjdscript_help
-    fi
-else
-    echo -e "Error: \"$@\" is not a valid argument\n"
-    cjdscript_help
+    exit 1
 fi
+
+# PARSE ARGUMENTS
+case "$1" in
+    -h|--help)
+        cjdscript_help
+        ;;
+    -l|--list)
+        list_scripts
+        ;;
+    -u|--update)
+        setup_scripts
+        exit 0
+        ;;
+    *)
+        # PERFORM UPDATE IF NECESSARY
+        if [ ! -d "${_CJDSCRIPT_HOME}/download/cjdns" ] \
+            || [ ! -d "${_CJDSCRIPT_HOME}/cjdnsadmin" ] \
+            || [ ! -d "${_CJDSCRIPT_HOME}/lib/python2.7/site-packages/cjdnsadmin" ] \
+            || [ ! -d "${_CJDSCRIPT_HOME}/bin" ] \
+            || [ ! -f "${_CJDSCRIPT_HOME}/.dirver" ] \
+            || [ ! $(cat "${_CJDSCRIPT_HOME}/.dirver") = "$_DIRVERSION" ]; then
+                echo "==> Warning: The configuration directory needs to be updated..."
+                setup_scripts
+        fi
+
+        # RUN COMMAND
+        if [[ -f "${_CJDSCRIPT_HOME}/bin/${1}" ]]; then
+            "$@"
+        else
+            echo -e "==> Error: ${1} is not a valid command\n"
+            cjdscript_help
+            exit 1
+        fi
+        ;;
+esac
+exit 0
