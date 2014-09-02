@@ -3,30 +3,81 @@
 _CJDSCRIPT_HOME="${HOME}/.cjdscript"
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
-_DIRVERSION="3"
+_DIRVERSION="4"
 
 _BASH_SCRIPTS=('cjdroid-build.sh' 'ip6tables.sh' 'run-cjdroute.bash')
 _BINARIES=('cjdroute' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
 _NODEJS_SCRIPTS=('dumptable.js' 'getLinks.js' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'pingAll.js' 'pingflood.js')
 _PYTHON2_SCRIPTS=('cjdnsadminmaker.py' 'cjdnslog' 'drawgraph' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'graphStats' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
 
+QUIET=">/dev/null 2>&1"
 APPNAME="${0##*/}"
 export PATH="${_CJDSCRIPT_HOME}/bin:${PATH}"
-export PYTHON2_PATH="${_CJDSCRIPT_HOME}/lib/python2.7/site-packages"
+export PYTHONPATH="${_CJDSCRIPT_HOME}/lib/python2.7/site-packages/"
 
 function setup_python {
     _PYTHON2_BINPATH=$(type -P python2)
-
+    [[ -z "$_PYTHON2_BINPATH" ]] && _PYTHON2_BINPATH=$(type -P python2.7)
     if [ -n "$_PYTHON2_BINPATH" ]; then
         # SETUP PYTHON LINKS
+        ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python"
         ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python2"
-        ln -f -s python2 "${_CJDSCRIPT_HOME}/bin/python"
+        ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python2.7"
 
         # INSTALL CJDNS PYTHON2 LIBRARIES
-        [[ -d "$PYTHON2_PATH" ]] && rm -rf "$PYTHON2_PATH"
-        install -d "$PYTHON2_PATH"
-        [[ -d "${_CJDSCRIPT_HOME}/download/python2" ]] && rm -rf "${_CJDSCRIPT_HOME}/download/python2"
-        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/cjdnsadmin" "${PYTHON2_PATH}/cjdnsadmin"
+        install -d "$PYTHONPATH"
+        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/cjdnsadmin" "${PYTHONPATH}/cjdnsadmin"
+
+        # INSTALL THIRD PARTY LIBRARIES
+        echo "==> Installing setuptools python2 library"
+        cd "${_CJDSCRIPT_HOME}/download"
+        [[ -d setuptools ]] && rm -rf setuptools
+        wget -q -O - https://pypi.python.org/packages/source/s/setuptools/setuptools-5.7.tar.gz | tar -xz
+        mv setuptools* setuptools
+        if [ -d setuptools ]; then
+            cd setuptools
+            eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
+
+            echo "==> Installing networkx python2 library"
+            cd "${_CJDSCRIPT_HOME}/download"
+            [[ -d networkx ]] && rm -rf networkx
+            wget -q -O - https://pypi.python.org/packages/source/n/networkx/networkx-1.9.tar.gz | tar -xz
+            mv networkx* networkx
+            if [ -d setuptools ]; then
+                cd networkx
+                eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
+            else
+                echo "==> Warning: networkx did not install correctly"
+            fi
+        else
+            echo "==> warning: setuptools and networkx did not install correctly"
+        fi
+
+        echo "==> Installing matplotlib python2 library"
+        cd "${_CJDSCRIPT_HOME}/download"
+        [[ -d matplotlib ]] && rm -rf matplotlib
+        wget -q -O - https://downloads.sourceforge.net/project/matplotlib/matplotlib/matplotlib-1.4.0/matplotlib-1.4.0.tar.gz | tar -xz
+        mv matplotlib* matplotlib
+        if [ -d matplotlib ]; then
+            cd matplotlib
+            eval "$_PYTHON2_BINPATH" setup.py build $QUIET
+            eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
+        else
+            echo "==> warning: matplotlib and networkx did not install correctly"
+        fi
+
+        echo "==> Installing numpy python2 library"
+        cd "${_CJDSCRIPT_HOME}/download"
+        [[ -d numpy ]] && rm -rf numpy
+        wget -q -O - http://downloads.sourceforge.net/project/numpy/NumPy/1.8.1/numpy-1.8.1.tar.gz | tar -xz
+        mv numpy* numpy
+        if [ -d numpy ]; then
+            cd numpy
+            eval "$_PYTHON2_BINPATH" setup.py build $QUIET
+            eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
+        else
+            echo "==> warning: numpy and networkx did not install correctly"
+        fi
 
         # INSTALL PYTHON2 SCRIPTS
         cd "${_CJDSCRIPT_HOME}/bin"
@@ -42,12 +93,11 @@ function setup_python {
 
 function setup_bash {
     _BASH_BINPATH=$(type -P bash)
-
     if [[ -n "$_BASH_BINPATH" ]]; then
         # SETUP BASH LINKS
         ln -f -s "$_BASH_BINPATH" "${_CJDSCRIPT_HOME}/bin/bash"
-        ln -f -s bash "${_CJDSCRIPT_HOME}/bin/sh"
-        ln -f -s bash "${_CJDSCRIPT_HOME}/bin/sh -e"
+        ln -f -s "$_BASH_BINPATH" "${_CJDSCRIPT_HOME}/bin/sh"
+        ln -f -s "$_BASH_BINPATH" "${_CJDSCRIPT_HOME}/bin/sh -e"
 
         # SETUP BASH SCRIPTS
         for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
@@ -67,11 +117,10 @@ function setup_bash {
 function setup_node {
     _NODEJS_BINPATH=$(type -P node)
     [[ -z "$_NODEJS_BINPATH" ]] && _NODEJS_BINPATH=$(type -P nodejs)
-
     if [ -n "$_NODEJS_BINPATH" ]; then
         # SETUP NODEJS LINKS
         ln -s "$_NODEJS_BINPATH" "${_CJDSCRIPT_HOME}/bin/node"
-        ln -s node "${_CJDSCRIPT_HOME}/bin/nodejs"
+        ln -s "$_NODEJS_BINPATH" "${_CJDSCRIPT_HOME}/bin/nodejs"
 
         # INSTALL NODEJS LIBRARIES
         ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/lib" .
@@ -91,11 +140,11 @@ function setup_node {
 function setup_binaries {
     if [ -f "${_CJDSCRIPT_HOME}/bin/python2" -a -f "${_CJDSCRIPT_HOME}/bin/node" ]; then
         # BUILD CJDNS
-        pushd ${_CJDSCRIPT_HOME}/download/cjdns >/dev/null 2>&1
+        cd ${_CJDSCRIPT_HOME}/download/cjdns
         echo "==> Building..."
-        sh "do" >/dev/null 2>&1
-        popd >/dev/null 2>&1
+        eval sh "do" $QUIET
 
+        cd "${_CJDSCRIPT_HOME}/bin"
         for _CJDNS_BINARYNAME in ${_BINARIES[@]}; do
             [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/${_CJDNS_BINARYNAME}" ]] \
                 && ln -s "${_CJDSCRIPT_HOME}/download/cjdns/${_CJDNS_BINARYNAME}" . \
@@ -109,17 +158,18 @@ function setup_binaries {
 function setup_scripts {
     echo "==> Setting up configuration directory..."
 
+    # CLONE OR UPDATE THE CJDNS REPO
     [[ ! -d "${_CJDSCRIPT_HOME}/bin" ]] && install -d "${_CJDSCRIPT_HOME}/download"
     if [ ! -d "${_CJDSCRIPT_HOME}/download/cjdns" ]; then
         cd "${_CJDSCRIPT_HOME}/download"
-        echo "\n==> Cloning repo..."
-        git clone "${_CJDNS_REPO}" >/dev/null 2>&1
+        echo "==> Cloning repo..."
+        eval git clone "${_CJDNS_REPO}" $QUIET
     else
         cd "${_CJDSCRIPT_HOME}/download/cjdns"
-        echo -e "==> Updating repo..."
-        git reset --hard >/dev/null 2>&1
-        git clean -dxf >/dev/null 2>&1
-        git pull >/dev/null 2>&1
+        echo "==> Updating repo..."
+        eval git reset --hard $QUIET
+        eval git clean -dxf $QUIET
+        eval git pull $QUIET
     fi
 
     # DELETE AND REMAKE THE BIN AND LIB DIRECTORIES IF THEY EXIST
@@ -221,9 +271,10 @@ function list_scripts {
 function cjdscript_help {
     echo -e "\nUSAGE:\n  ${APPNAME} [OPTION]\n  ${APPNAME} [SCRIPTNAME] [OPTION] [OPTION...]\n"
     echo "OPTIONS:"
-    echo -e "  -h | --help: Show this help"
     echo -e "  -u | --update: Updates scripts and symlinks"
-    echo -e "  -l | --list: Lists available scripts\n"
+    echo -e "  -v | --verbose-update: Updates with verbose output"
+    echo -e "  -l | --list: Lists available scripts"
+    echo -e "  -h | --help: Show this help\n"
 }
 
 # FAIL IF NO ARGUMENTS ARE GIVEN
@@ -242,6 +293,11 @@ case "$1" in
         list_scripts
         ;;
     -u|--update)
+        setup_scripts
+        exit 0
+        ;;
+    -v|--verbose-update)
+        unset QUIET
         setup_scripts
         exit 0
         ;;

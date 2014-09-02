@@ -20,9 +20,10 @@ This script maintains and executes the collection of (working) tools included in
 ## USAGE ##
 
 1. Install the dependancies required for the desired scripts (currently 'bash' and 'python2' scripts are included)
-4. Run `cjdscript -u` update the configuration
-2. Run `cjdscript -l` display a list of available scripts
-3. Run `cjdscript -h` show the help dialog
+4. Run cjdscript `-u` | `--update`: update the configuration
+4. Run cjdscript `-v` | `--verbose-update`: update with verbose output
+2. Run cjdscript `-l` | `--list`: display a list of available scripts
+3. Run cjdscript `-h` | `--help`: show the help dialog
 
 **Note**: If things break badly, try deleting the config directory @ _~/.cjdscript_
 
