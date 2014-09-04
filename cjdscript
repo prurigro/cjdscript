@@ -19,42 +19,48 @@ function setup_python {
     _PYTHON2_BINPATH=$(type -P python2)
     [[ -z "$_PYTHON2_BINPATH" ]] && _PYTHON2_BINPATH=$(type -P python2.7)
     if [ -n "$_PYTHON2_BINPATH" ]; then
-        # SETUP PYTHON LINKS
+        # SETUP PYTHON2 LINKS AND LIB DIRECTORY
         ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python"
         ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python2"
         ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python2.7"
+        install -d "$PYTHONPATH"
 
         # INSTALL CJDNS PYTHON2 LIBRARIES
-        install -d "$PYTHONPATH"
+        echo "==> Setting up python2 library: cjdnsadmin"
         ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/cjdnsadmin" "${PYTHONPATH}/cjdnsadmin"
 
         # INSTALL THIRD PARTY LIBRARIES
-        echo "==> Installing setuptools python2 library"
         cd "${_CJDSCRIPT_HOME}/download"
+
+        echo "==> Downloading python2 library: setuptools"
         [[ -d setuptools ]] && rm -rf setuptools
         wget -q -O - https://pypi.python.org/packages/source/s/setuptools/setuptools-5.7.tar.gz | tar -xz
         mv setuptools* setuptools
         if [ -d setuptools ]; then
+            echo "==> Installing python2 library: setuptools"
             cd setuptools
             eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
-
-            echo "==> Installing networkx python2 library"
             cd "${_CJDSCRIPT_HOME}/download"
+            rm -rf setuptools
+
+            echo "==> Downloading python2 library: networkx"
             [[ -d networkx ]] && rm -rf networkx
             wget -q -O - https://pypi.python.org/packages/source/n/networkx/networkx-1.9.tar.gz | tar -xz
             mv networkx* networkx
-            if [ -d setuptools ]; then
+            if [ -d networkx ]; then
+                echo "==> Installing python2 library: networkx"
                 cd networkx
                 eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
+                cd "${_CJDSCRIPT_HOME}/download"
+                rm -rf networkx
             else
                 echo "==> Warning: networkx did not install correctly"
             fi
         else
-            echo "==> warning: setuptools and networkx did not install correctly"
+            echo "==> Warning: setuptools and networkx did not install correctly"
         fi
 
-        echo "==> Installing matplotlib python2 library"
-        cd "${_CJDSCRIPT_HOME}/download"
+        echo "==> Installing python2 library: matplotlib"
         [[ -d matplotlib ]] && rm -rf matplotlib
         wget -q -O - https://downloads.sourceforge.net/project/matplotlib/matplotlib/matplotlib-1.4.0/matplotlib-1.4.0.tar.gz | tar -xz
         mv matplotlib* matplotlib
@@ -62,12 +68,13 @@ function setup_python {
             cd matplotlib
             eval "$_PYTHON2_BINPATH" setup.py build $QUIET
             eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
+            cd "${_CJDSCRIPT_HOME}/download"
+            rm -rf matplotlib
         else
-            echo "==> warning: matplotlib and networkx did not install correctly"
+            echo "==> Warning: matplotlib did not install correctly"
         fi
 
-        echo "==> Installing numpy python2 library"
-        cd "${_CJDSCRIPT_HOME}/download"
+        echo "==> Installing python2 library: numpy"
         [[ -d numpy ]] && rm -rf numpy
         wget -q -O - http://downloads.sourceforge.net/project/numpy/NumPy/1.8.1/numpy-1.8.1.tar.gz | tar -xz
         mv numpy* numpy
@@ -75,11 +82,14 @@ function setup_python {
             cd numpy
             eval "$_PYTHON2_BINPATH" setup.py build $QUIET
             eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
+            cd "${_CJDSCRIPT_HOME}/download"
+            rm -rf numpy
         else
-            echo "==> warning: numpy and networkx did not install correctly"
+            echo "==> Warning: numpy did not install correctly"
         fi
 
         # INSTALL PYTHON2 SCRIPTS
+        echo "==> Installing python2 scripts..."
         cd "${_CJDSCRIPT_HOME}/bin"
         for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
             [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" ]] \
@@ -271,8 +281,8 @@ function list_scripts {
 function cjdscript_help {
     echo -e "\nUSAGE:\n  ${APPNAME} [OPTION]\n  ${APPNAME} [SCRIPTNAME] [OPTION] [OPTION...]\n"
     echo "OPTIONS:"
-    echo -e "  -u | --update: Updates scripts and symlinks"
-    echo -e "  -v | --verbose-update: Updates with verbose output"
+    echo -e "  -u | --update: Update/setup symlinks, libs and scripts"
+    echo -e "  -v | --verbose-update: Update/setup with verbose output"
     echo -e "  -l | --list: Lists available scripts"
     echo -e "  -h | --help: Show this help\n"
 }
