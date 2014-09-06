@@ -1,21 +1,32 @@
 #!/usr/bin/env bash
 
+# CJDSCRIPT ROOT FOLDER: CONTAINS EVERYTHING CJDSCRIPT DOWNLOADS AND INSTALLS
 _CJDSCRIPT_HOME="${HOME}/.cjdscript"
+
+# URL TO GRAB THE CJDNS GIT REPO FROM
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
+# DIRECTORY VERSION: USED TO TRIGGER UPDATES WHEN THE CONTENTS OF _CJDSCRIPT_HOME CHANGE
 _DIRVERSION="4"
 
+# INCLUDED SCRIPTS, BY LANGUAGE
 _BASH_SCRIPTS=('cjdroid-build.sh' 'ip6tables.sh' 'run-cjdroute.bash')
 _BINARIES=('cjdroute' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
 _NODEJS_SCRIPTS=('dumptable.js' 'getLinks.js' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'pingAll.js' 'pingflood.js')
 _PYTHON2_SCRIPTS=('cjdnsadminmaker.py' 'cjdnslog' 'drawgraph' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'graphStats' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
 
+# USED TO SILENCE OUTPUT UNLESS THE VERBOSE OPTION IS USED
 QUIET=">/dev/null 2>&1"
+
+# HOLDS THE NAME OF THE SCRIPT, DYNAMIC SO EVERYTHING STAYS CORRECT IF SOMEONE USES A DIFFERENT FILENAME
 APPNAME="${0##*/}"
+
+# EXPORT PATH VARIABLES WITH CJDSCRIPT LOCATIONS INCLUDED
 export PATH="${_CJDSCRIPT_HOME}/bin:${PATH}"
 export PYTHONPATH="${_CJDSCRIPT_HOME}/lib/python2.7/site-packages/"
 
-function setup_python {
+# PYTHON2 SETUP FUNCTION (triggered by setup_scripts)
+function setup_python2 {
     _PYTHON2_BINPATH=$(type -P python2)
     [[ -z "$_PYTHON2_BINPATH" ]] && _PYTHON2_BINPATH=$(type -P python2.7)
     if [ -n "$_PYTHON2_BINPATH" ]; then
@@ -101,6 +112,7 @@ function setup_python {
     fi
 }
 
+# BASH SETUP FUNCTION (triggered by setup_scripts)
 function setup_bash {
     _BASH_BINPATH=$(type -P bash)
     if [[ -n "$_BASH_BINPATH" ]]; then
@@ -124,6 +136,7 @@ function setup_bash {
     fi
 }
 
+# NODE SETUP FUNCTION (triggered by setup_scripts)
 function setup_node {
     _NODEJS_BINPATH=$(type -P node)
     [[ -z "$_NODEJS_BINPATH" ]] && _NODEJS_BINPATH=$(type -P nodejs)
@@ -147,6 +160,7 @@ function setup_node {
     fi
 }
 
+# BINARY SETUP FUNCTION (triggered by setup_scripts)
 function setup_binaries {
     if [ -f "${_CJDSCRIPT_HOME}/bin/python2" -a -f "${_CJDSCRIPT_HOME}/bin/node" ]; then
         # BUILD CJDNS
@@ -165,6 +179,7 @@ function setup_binaries {
     fi
 }
 
+# MAIN SETUP FUNCTION: CONFIGURES _CJDSCRIPT_HOME AND RUN SETUP FUNCTIONS (cjdscript -u | --update | -v | verbose-update)
 function setup_scripts {
     echo "==> Setting up configuration directory..."
 
@@ -193,7 +208,7 @@ function setup_scripts {
     echo "==> Configuring executables and scripts..."
     setup_bash
     setup_node
-    setup_python
+    setup_python2
     setup_binaries
 
     # UPDATE DIRECTORY VERSION
@@ -205,6 +220,7 @@ function setup_scripts {
     cjdscript_help
 }
 
+# FUNCTION TO LIST SCRIPTS (cjdscript -l | --list)
 function list_scripts {
     SCRIPTS_PER_LINE=4
     echo
@@ -278,6 +294,7 @@ function list_scripts {
     fi
 }
 
+# FUNCTION TO OUTPUT HELP INFORMATION (cjdscript -h | --help)
 function cjdscript_help {
     echo -e "\nUSAGE:\n  ${APPNAME} [OPTION]\n  ${APPNAME} [SCRIPTNAME] [OPTION] [OPTION...]\n"
     echo "OPTIONS:"
