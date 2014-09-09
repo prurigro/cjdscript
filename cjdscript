@@ -29,7 +29,7 @@ export PYTHONPATH="${_CJDSCRIPT_HOME}/lib/python2.7/site-packages/"
 function setup_python2 {
     _PYTHON2_BINPATH=$(type -P python2)
     [[ -z "$_PYTHON2_BINPATH" ]] && _PYTHON2_BINPATH=$(type -P python2.7)
-    if [ -n "$_PYTHON2_BINPATH" ]; then
+    if [ -f "$_PYTHON2_BINPATH" ]; then
         # SETUP PYTHON2 LINKS AND LIB DIRECTORY
         ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python"
         ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python2"
@@ -115,7 +115,7 @@ function setup_python2 {
 # BASH SETUP FUNCTION (triggered by setup_scripts)
 function setup_bash {
     _BASH_BINPATH=$(type -P bash)
-    if [[ -n "$_BASH_BINPATH" ]]; then
+    if [[ -f "$_BASH_BINPATH" ]]; then
         # SETUP BASH LINKS
         ln -f -s "$_BASH_BINPATH" "${_CJDSCRIPT_HOME}/bin/bash"
         ln -f -s "$_BASH_BINPATH" "${_CJDSCRIPT_HOME}/bin/sh"
@@ -140,7 +140,7 @@ function setup_bash {
 function setup_node {
     _NODEJS_BINPATH=$(type -P node)
     [[ -z "$_NODEJS_BINPATH" ]] && _NODEJS_BINPATH=$(type -P nodejs)
-    if [ -n "$_NODEJS_BINPATH" ]; then
+    if [ -f "$_NODEJS_BINPATH" ]; then
         # SETUP NODEJS LINKS
         ln -s "$_NODEJS_BINPATH" "${_CJDSCRIPT_HOME}/bin/node"
         ln -s "$_NODEJS_BINPATH" "${_CJDSCRIPT_HOME}/bin/nodejs"
@@ -162,7 +162,7 @@ function setup_node {
 
 # BINARY SETUP FUNCTION (triggered by setup_scripts)
 function setup_binaries {
-    if [ -f "${_CJDSCRIPT_HOME}/bin/python2" -a -f "${_CJDSCRIPT_HOME}/bin/node" ]; then
+    if [ -f "${_CJDSCRIPT_HOME}/bin/python" -a -f "${_CJDSCRIPT_HOME}/bin/node" ]; then
         # BUILD CJDNS
         cd ${_CJDSCRIPT_HOME}/download/cjdns
         echo "==> Building..."
@@ -175,7 +175,7 @@ function setup_binaries {
                 || echo "==> Warning: ${_CJDNS_BINARYNAME} does not exist and won't be installed"
         done
     else
-        echo "==> Warning: Not building binaries (python2 is not available)"
+        echo "==> Warning: Not building binaries (python2 and node are required)"
     fi
 }
 
@@ -260,7 +260,7 @@ function list_scripts {
     fi
 
     # LIST PYTHON2 SCRIPTS
-    if [ -f "${_CJDSCRIPT_HOME}/bin/python2" ]; then
+    if [ -f "${_CJDSCRIPT_HOME}/bin/python" ]; then
         echo -n -e "PYTHON2:\n "
         COUNT=0
         for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
@@ -331,8 +331,6 @@ case "$1" in
     *)
         # PERFORM UPDATE IF NECESSARY
         if [ ! -d "${_CJDSCRIPT_HOME}/download/cjdns" ] \
-            || [ ! -d "${_CJDSCRIPT_HOME}/cjdnsadmin" ] \
-            || [ ! -d "${_CJDSCRIPT_HOME}/lib/python2.7/site-packages/cjdnsadmin" ] \
             || [ ! -d "${_CJDSCRIPT_HOME}/bin" ] \
             || [ ! -f "${_CJDSCRIPT_HOME}/.dirver" ] \
             || [ ! $(cat "${_CJDSCRIPT_HOME}/.dirver") = "$_DIRVERSION" ]; then
