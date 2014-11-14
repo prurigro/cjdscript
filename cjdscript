@@ -12,8 +12,14 @@ _DIRVERSION="4"
 # INCLUDED SCRIPTS, BY LANGUAGE
 _BASH_SCRIPTS=('cjdroid-build.sh' 'ip6tables.sh' 'run-cjdroute.bash')
 _BINARIES=('cjdroute' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
-_NODEJS_SCRIPTS=('dumptable.js' 'getLinks.js' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'pingAll.js' 'pingflood.js')
+_NODEJS_SCRIPTS=('cjdnslog.js' 'dumptable.js' 'getLinks.js' 'makesim.js' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'pingAll.js' 'pingflood.js' 'splice.js')
 _PYTHON2_SCRIPTS=('cjdnsadminmaker.py' 'cjdnslog' 'drawgraph' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'graphStats' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
+
+# LIBRARY DOWNLOAD URLS
+SETUPTOOLS_URL='https://pypi.python.org/packages/source/s/setuptools/setuptools-7.0.tar.gz'
+NETWORKX_URL='https://pypi.python.org/packages/source/n/networkx/networkx-1.9.1.tar.gz'
+MATPLOTLIB_URL='https://downloads.sourceforge.net/project/matplotlib/matplotlib/matplotlib-1.4.2/matplotlib-1.4.2.tar.gz'
+NUMPY_URL='http://downloads.sourceforge.net/project/numpy/NumPy/1.9.1/numpy-1.9.1.tar.gz'
 
 # USED TO SILENCE OUTPUT UNLESS THE VERBOSE OPTION IS USED
 QUIET=">/dev/null 2>&1"
@@ -45,7 +51,7 @@ function setup_python2 {
 
         echo "==> Downloading python2 library: setuptools"
         [[ -d setuptools ]] && rm -rf setuptools
-        wget -q -O - https://pypi.python.org/packages/source/s/setuptools/setuptools-5.7.tar.gz | tar -xz
+        wget -q -O - $SETUPTOOLS_URL | tar -xz
         mv setuptools* setuptools
         if [ -d setuptools ]; then
             echo "==> Installing python2 library: setuptools"
@@ -56,7 +62,7 @@ function setup_python2 {
 
             echo "==> Downloading python2 library: networkx"
             [[ -d networkx ]] && rm -rf networkx
-            wget -q -O - https://pypi.python.org/packages/source/n/networkx/networkx-1.9.tar.gz | tar -xz
+            wget -q -O - $NETWORKX_URL | tar -xz
             mv networkx* networkx
             if [ -d networkx ]; then
                 echo "==> Installing python2 library: networkx"
@@ -73,7 +79,7 @@ function setup_python2 {
 
         echo "==> Installing python2 library: matplotlib"
         [[ -d matplotlib ]] && rm -rf matplotlib
-        wget -q -O - https://downloads.sourceforge.net/project/matplotlib/matplotlib/matplotlib-1.4.0/matplotlib-1.4.0.tar.gz | tar -xz
+        wget -q -O - $MATPLOTLIB_URL | tar -xz
         mv matplotlib* matplotlib
         if [ -d matplotlib ]; then
             cd matplotlib
@@ -87,7 +93,7 @@ function setup_python2 {
 
         echo "==> Installing python2 library: numpy"
         [[ -d numpy ]] && rm -rf numpy
-        wget -q -O - http://downloads.sourceforge.net/project/numpy/NumPy/1.8.1/numpy-1.8.1.tar.gz | tar -xz
+        wget -q -O - $NUMPY_URL | tar -xz
         mv numpy* numpy
         if [ -d numpy ]; then
             cd numpy
@@ -151,9 +157,13 @@ function setup_node {
 
         # SETUP NODEJS SCRIPTS
         for _NODEJS_SCRIPTNAME in ${_NODEJS_SCRIPTS[@]}; do
-            [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_NODEJS_SCRIPTNAME}" ]] \
-                && ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_NODEJS_SCRIPTNAME}" . \
-                || echo "==> Warning: ${_NODEJS_SCRIPTNAME} does not exist and won't be installed"
+            if [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/${_NODEJS_SCRIPTNAME}" ]]; then
+                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/${_NODEJS_SCRIPTNAME}" .
+            elif  [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_NODEJS_SCRIPTNAME}" ]]; then
+                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_NODEJS_SCRIPTNAME}" .
+            else
+                echo "==> Warning: ${_NODEJS_SCRIPTNAME} does not exist and won't be installed"
+            fi
         done
     else
         echo "==> Warning: Not including node.js scripts (node/nodejs is not available)"
