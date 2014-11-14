@@ -7,7 +7,7 @@ _CJDSCRIPT_HOME="${HOME}/.cjdscript"
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
 # DIRECTORY VERSION: USED TO TRIGGER UPDATES WHEN THE CONTENTS OF _CJDSCRIPT_HOME CHANGE
-_DIRVERSION="4"
+_DIRVERSION="5"
 
 # INCLUDED SCRIPTS, BY LANGUAGE
 _BASH_SCRIPTS=('cjdroid-build.sh' 'ip6tables.sh' 'run-cjdroute.bash')
