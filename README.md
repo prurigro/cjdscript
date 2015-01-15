@@ -2,30 +2,30 @@
 
 ## ABOUT ##
 
-This script maintains and executes the collection of (working) tools included in the [cjdns repo](https://github.com/cjdelisle/cjdns).
+A script to deploy and run the collection of working tools included with [cjdns](https://github.com/cjdelisle/cjdns).
 
 ## REQUIREMENTS ##
 
 ### Needed ###
 
-* `Bash`: Required for bash scripts as well as **cjdscript** ;)
-* `Git`: Used to clone the **cjdns** repo
+* `Bash`: Required to execute the **cjdscript** script
+* `Git`: Required to clone the **cjdns** repo
 
 ### Recommended ###
 
 * `GCC`: Required to compile binaries
 * `Python 2`: Required to setup/run **python2** scripts and compile binaries
 * `Node.js`: Required to setup/run **node.js** scripts and compile binaries
+* `Wget`: Required to download **Python 2** libraries
 
 ## USAGE ##
 
-1. Install the dependancies required for the desired scripts (currently 'bash' and 'python2' scripts are included)
-4. Run cjdscript `-u` | `--update`: update the configuration
-4. Run cjdscript `-v` | `--verbose-update`: update with verbose output
-2. Run cjdscript `-l` | `--list`: display a list of available scripts
-3. Run cjdscript `-h` | `--help`: show the help dialog
+* `-u` | `--update`: update the configuration
+* `-v` | `--verbose`: update with verbose output
+* `-l` | `--list`: display a list of available scripts
+* `-h` | `--help`: show the help dialog
 
-**Note**: If things break badly, try deleting the config directory @ _~/.cjdscript_
+**Note**: Issues may be possible to resolve by running `cjdscript -u` or deleting _~/.cjdscript_.
 
 ## CREDITS ##
 

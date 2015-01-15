@@ -1,361 +1,451 @@
 #!/usr/bin/env bash
+#
+# cjdscript: a script to deploy and run the collection of working tools included with cjdns
+#
+# version: 6
+#
+# written by Kevin MacMartin
+# licensed under the GPLv3
+#
 
-# CJDSCRIPT ROOT FOLDER: CONTAINS EVERYTHING CJDSCRIPT DOWNLOADS AND INSTALLS
-_CJDSCRIPT_HOME="${HOME}/.cjdscript"
+# CJDSCRIPT VERSION: This value is saved to ~/.cjdscript/.dirver and will trigger an update when different
+_CJDSCRIPT_VERSION="6"
 
-# URL TO GRAB THE CJDNS GIT REPO FROM
+# CJDSCRIPT ROOT: Base directory for cjdscript files to be installed
+_CJDSCRIPT_HOME="$HOME/.cjdscript"
+
+# CJDNS REPOSITORY: The location of the cjdns git repo to clone
 _CJDNS_REPO="https://github.com/cjdelisle/cjdns.git"
 
-# DIRECTORY VERSION: USED TO TRIGGER UPDATES WHEN THE CONTENTS OF _CJDSCRIPT_HOME CHANGE
-_DIRVERSION="5"
-
-# INCLUDED SCRIPTS, BY LANGUAGE
+# INCLUDED SCRIPTS: The scripts supported by cjdscripts, separated by language
 _BASH_SCRIPTS=('cjdroid-build.sh' 'ip6tables.sh' 'run-cjdroute.bash')
 _BINARIES=('cjdroute' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
-_NODEJS_SCRIPTS=('cjdnslog.js' 'dumptable.js' 'getLinks.js' 'makesim.js' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'pingAll.js' 'pingflood.js' 'splice.js')
+_NODEJS_SCRIPTS=('admin.js' 'cjdnslog.js' 'dumptable.js' 'getLinks.js' 'makesim.js' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'ping' 'pingAll.js' 'pingflood.js' 'splice.js' 'traceroute')
 _PYTHON2_SCRIPTS=('cjdnsadminmaker.py' 'cjdnslog' 'drawgraph' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'graphStats' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
 
-# LIBRARY DOWNLOAD URLS
-SETUPTOOLS_URL='https://pypi.python.org/packages/source/s/setuptools/setuptools-7.0.tar.gz'
-NETWORKX_URL='https://pypi.python.org/packages/source/n/networkx/networkx-1.9.1.tar.gz'
-MATPLOTLIB_URL='https://downloads.sourceforge.net/project/matplotlib/matplotlib/matplotlib-1.4.2/matplotlib-1.4.2.tar.gz'
-NUMPY_URL='http://downloads.sourceforge.net/project/numpy/NumPy/1.9.1/numpy-1.9.1.tar.gz'
+# DOWNLOAD URLs: The locations to grab different external libraries
+_URL_PYTHON_SETUPTOOLS='https://pypi.python.org/packages/source/s/setuptools/setuptools-11.3.1.tar.gz'
+_URL_PYTHON_NETWORKX='https://pypi.python.org/packages/source/n/networkx/networkx-1.9.1.tar.gz'
+_URL_PYTHON_MATPLOTLIB='https://downloads.sourceforge.net/project/matplotlib/matplotlib/matplotlib-1.4.2/matplotlib-1.4.2.tar.gz'
+_URL_PYTHON_NUMPY='http://downloads.sourceforge.net/project/numpy/NumPy/1.9.1/numpy-1.9.1.tar.gz'
+_URL_PYTHON_PYSIDE='https://pypi.python.org/packages/source/P/PySide/PySide-1.2.2.tar.gz'
 
-# USED TO SILENCE OUTPUT UNLESS THE VERBOSE OPTION IS USED
-QUIET=">/dev/null 2>&1"
+# Silences detailed output so only important messages are seen (unset by the verbose flag)
+_SILENT_OUTPUT=">/dev/null 2>&1"
 
-# HOLDS THE NAME OF THE SCRIPT, DYNAMIC SO EVERYTHING STAYS CORRECT IF SOMEONE USES A DIFFERENT FILENAME
-APPNAME="${0##*/}"
+# Name of the script file, for use in help and usage functionality
+_SCRIPT_NAME="${0##*/}"
 
-# EXPORT PATH VARIABLES WITH CJDSCRIPT LOCATIONS INCLUDED
-export PATH="${_CJDSCRIPT_HOME}/bin:${PATH}"
-export PYTHONPATH="${_CJDSCRIPT_HOME}/lib/python2.7/site-packages/"
+# Colourscheme
+[[ -t 1 ]] && {
+    _COLOUR_NAME='\e[1;37m'      # WHITE
+    _COLOUR_HEADING='\e[1;34m'   # BLUE
+    _COLOUR_DIVIDER='\e[1;30m'   # DARK GREY
+    _COLOUR_HIGHLIGHT='\e[1;33m' # YELLOW
+    _COLOUR_GOOD='\e[1;32m'      # GREEN
+    _COLOUR_ERROR='\e[1;31m'     # RED
+    _COLOUR_UNDERLINE='\e[4m' # WHITE
+    _COLOUR_RESET='\e[0m'        # DISABLES COLOUR
+}
 
-# PYTHON2 SETUP FUNCTION (triggered by setup_scripts)
+# Export path variables with cjdscript locations included
+export PATH="$_CJDSCRIPT_HOME/bin:$PATH"
+export PYTHONPATH="$_CJDSCRIPT_HOME/lib/python2.7/site-packages/"
+
+# PYTHON2 SETUP: Triggered by setup_scripts to configure supported python2 scripts
 function setup_python2 {
     _PYTHON2_BINPATH=$(type -P python2)
     [[ -z "$_PYTHON2_BINPATH" ]] && _PYTHON2_BINPATH=$(type -P python2.7)
-    if [ -f "$_PYTHON2_BINPATH" ]; then
-        # SETUP PYTHON2 LINKS AND LIB DIRECTORY
-        ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python"
-        ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python2"
-        ln -f -s "$_PYTHON2_BINPATH" "${_CJDSCRIPT_HOME}/bin/python2.7"
+    [[ -f "$_PYTHON2_BINPATH" ]] && {
+        echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} Configuring ${_COLOUR_NAME}python2${_COLOUR_RESET} scripts"
+
+        # Setup Python2 links and lib directory
+        ln -f -s "$_PYTHON2_BINPATH" "$_CJDSCRIPT_HOME/bin/python"
+        ln -f -s "$_PYTHON2_BINPATH" "$_CJDSCRIPT_HOME/bin/python2"
+        ln -f -s "$_PYTHON2_BINPATH" "$_CJDSCRIPT_HOME/bin/python2.7"
         install -d "$PYTHONPATH"
 
-        # INSTALL CJDNS PYTHON2 LIBRARIES
-        echo "==> Setting up python2 library: cjdnsadmin"
-        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/cjdnsadmin" "${PYTHONPATH}/cjdnsadmin"
+        # Install CJDNS Python2 libraries
+        ln -f -s "$_CJDSCRIPT_HOME/download/cjdns/contrib/python/cjdnsadmin" "$PYTHONPATH/cjdnsadmin"
 
         # INSTALL THIRD PARTY LIBRARIES
-        cd "${_CJDSCRIPT_HOME}/download"
+        cd "$_CJDSCRIPT_HOME/download"
 
-        echo "==> Downloading python2 library: setuptools"
+        echo -ne "${_COLOUR_HEADING}==>${_COLOUR_RESET} Installing ${_COLOUR_NAME}python2${_COLOUR_RESET} library: ${_COLOUR_HIGHLIGHT}setuptools${_COLOUR_RESET}... "
         [[ -d setuptools ]] && rm -rf setuptools
-        wget -q -O - $SETUPTOOLS_URL | tar -xz
+        wget -q -O - $_URL_PYTHON_SETUPTOOLS | tar -xz
         mv setuptools* setuptools
-        if [ -d setuptools ]; then
-            echo "==> Installing python2 library: setuptools"
+        [[ -d setuptools ]] && {
             cd setuptools
-            eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
-            cd "${_CJDSCRIPT_HOME}/download"
+            eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $_SILENT_OUTPUT
+            cd "$_CJDSCRIPT_HOME/download"
             rm -rf setuptools
+            echo -e "${_COLOUR_GOOD}DONE!${_COLOUR_RESET}"
 
-            echo "==> Downloading python2 library: networkx"
+            echo -ne "${_COLOUR_HEADING}==>${_COLOUR_RESET} Installing ${_COLOUR_NAME}python2${_COLOUR_RESET} library: ${_COLOUR_HIGHLIGHT}networkx${_COLOUR_RESET}... "
             [[ -d networkx ]] && rm -rf networkx
-            wget -q -O - $NETWORKX_URL | tar -xz
+            wget -q -O - $_URL_PYTHON_NETWORKX | tar -xz
             mv networkx* networkx
-            if [ -d networkx ]; then
-                echo "==> Installing python2 library: networkx"
+            [[ -d networkx ]] && {
                 cd networkx
-                eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
-                cd "${_CJDSCRIPT_HOME}/download"
+                eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $_SILENT_OUTPUT
+                cd "$_CJDSCRIPT_HOME/download"
                 rm -rf networkx
-            else
-                echo "==> Warning: networkx did not install correctly"
-            fi
-        else
-            echo "==> Warning: setuptools and networkx did not install correctly"
-        fi
+                echo -e "${_COLOUR_GOOD}DONE!${_COLOUR_RESET}"
+            } || {
+                # Display an error stating that networkx didn't install correctly
+                echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} networkx did not install correctly"
+            }
 
-        echo "==> Installing python2 library: matplotlib"
+            echo -ne "${_COLOUR_HEADING}==>${_COLOUR_RESET} Installing ${_COLOUR_NAME}python2${_COLOUR_RESET} library: ${_COLOUR_HIGHLIGHT}PySide${_COLOUR_RESET}... "
+            [[ -d PySide ]] && rm -rf PySide
+            wget -q -O - $_URL_PYTHON_PYSIDE | tar -xz
+            mv PySide* PySide
+            [[ -d PySide ]] && {
+                cd PySide
+                eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $_SILENT_OUTPUT
+                cd "$_CJDSCRIPT_HOME/download"
+                rm -rf PySide
+                echo -e "${_COLOUR_GOOD}DONE!${_COLOUR_RESET}"
+            } || {
+                # Display an error stating that PySide didn't install correctly
+                echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} PySide did not install correctly"
+            }
+        } || {
+            # Display an error stating that setuptools didn't install correctly and list the libraries this affects
+            echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} setuptools did not install correctly so networkx and PySide won't be available"
+        }
+
+        echo -ne "${_COLOUR_HEADING}==>${_COLOUR_RESET} Installing ${_COLOUR_NAME}python2${_COLOUR_RESET} library: ${_COLOUR_HIGHLIGHT}matplotlib${_COLOUR_RESET}... "
         [[ -d matplotlib ]] && rm -rf matplotlib
-        wget -q -O - $MATPLOTLIB_URL | tar -xz
+        wget -q -O - $_URL_PYTHON_MATPLOTLIB | tar -xz
         mv matplotlib* matplotlib
-        if [ -d matplotlib ]; then
+        [[ -d matplotlib ]] && {
             cd matplotlib
-            eval "$_PYTHON2_BINPATH" setup.py build $QUIET
-            eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
-            cd "${_CJDSCRIPT_HOME}/download"
+            eval "$_PYTHON2_BINPATH" setup.py build $_SILENT_OUTPUT
+            eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $_SILENT_OUTPUT
+            cd "$_CJDSCRIPT_HOME/download"
             rm -rf matplotlib
-        else
-            echo "==> Warning: matplotlib did not install correctly"
-        fi
+            echo -e "${_COLOUR_GOOD}DONE!${_COLOUR_RESET}"
+        } || {
+            # Display an error stating that matplotlib didn't install correctly
+            echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} matplotlib did not install correctly"
+        }
 
-        echo "==> Installing python2 library: numpy"
+        echo -ne "${_COLOUR_HEADING}==>${_COLOUR_RESET} Installing ${_COLOUR_NAME}python2${_COLOUR_RESET} library: ${_COLOUR_HIGHLIGHT}numpy${_COLOUR_RESET}... "
         [[ -d numpy ]] && rm -rf numpy
-        wget -q -O - $NUMPY_URL | tar -xz
+        wget -q -O - $_URL_PYTHON_NUMPY | tar -xz
         mv numpy* numpy
-        if [ -d numpy ]; then
+        [[ -d numpy ]] && {
             cd numpy
-            eval "$_PYTHON2_BINPATH" setup.py build $QUIET
-            eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $QUIET
-            cd "${_CJDSCRIPT_HOME}/download"
+            eval "$_PYTHON2_BINPATH" setup.py build $_SILENT_OUTPUT
+            eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_HOME" $_SILENT_OUTPUT
+            cd "$_CJDSCRIPT_HOME/download"
             rm -rf numpy
-        else
-            echo "==> Warning: numpy did not install correctly"
-        fi
+            echo -e "${_COLOUR_GOOD}DONE!${_COLOUR_RESET}"
+        } || {
+            # Display an error stating that numpy didn't install correctly
+            echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} numpy did not install correctly"
+        }
 
         # INSTALL PYTHON2 SCRIPTS
-        echo "==> Installing python2 scripts..."
-        cd "${_CJDSCRIPT_HOME}/bin"
+        cd "$_CJDSCRIPT_HOME/bin"
         for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
-            [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" ]] \
-                && ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/python/${_PYTHON2_SCRIPTNAME}" . \
-                || echo "==> Warning: ${_PYTHON2_SCRIPTNAME} does not exist and won't be installed"
+            [[ -f "$_CJDSCRIPT_HOME/download/cjdns/contrib/python/$_PYTHON2_SCRIPTNAME" ]] \
+                && ln -s "$_CJDSCRIPT_HOME/download/cjdns/contrib/python/$_PYTHON2_SCRIPTNAME" . \
+                || echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} $_PYTHON2_SCRIPTNAME does not exist and won't be installed"
         done
-    else
-        echo "==> Warning: Not including python2 scripts (python2 is not available)"
-    fi
+    } || {
+        # Display an error stating that python2 scripts won't be available
+        echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} Not including python2 scripts (python2 is not available)"
+    }
 }
 
-# BASH SETUP FUNCTION (triggered by setup_scripts)
+# BASH SETUP: Triggered by setup_scripts to configure supported bash scripts
 function setup_bash {
     _BASH_BINPATH=$(type -P bash)
-    if [[ -f "$_BASH_BINPATH" ]]; then
-        # SETUP BASH LINKS
-        ln -f -s "$_BASH_BINPATH" "${_CJDSCRIPT_HOME}/bin/bash"
-        ln -f -s "$_BASH_BINPATH" "${_CJDSCRIPT_HOME}/bin/sh"
-        ln -f -s "$_BASH_BINPATH" "${_CJDSCRIPT_HOME}/bin/sh -e"
+    [[ -f "$_BASH_BINPATH" ]] && {
+        echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} Configuring ${_COLOUR_NAME}bash${_COLOUR_RESET} scripts"
 
-        # SETUP BASH SCRIPTS
+        # Setup bash links
+        ln -f -s "$_BASH_BINPATH" "$_CJDSCRIPT_HOME/bin/bash"
+        ln -f -s "$_BASH_BINPATH" "$_CJDSCRIPT_HOME/bin/sh"
+        ln -f -s "$_BASH_BINPATH" "$_CJDSCRIPT_HOME/bin/sh -e"
+
+        # Setup bash scripts
         for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
-            if [ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" ]; then
-                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/bash/${_BASH_SCRIPTNAME}" .
-            elif [ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/android/${_BASH_SCRIPTNAME}" ]; then
-                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/android/${_BASH_SCRIPTNAME}" .
+            if [ -f "$_CJDSCRIPT_HOME/download/cjdns/contrib/bash/$_BASH_SCRIPTNAME" ]; then
+                ln -s "$_CJDSCRIPT_HOME/download/cjdns/contrib/bash/$_BASH_SCRIPTNAME" .
+            elif [ -f "$_CJDSCRIPT_HOME/download/cjdns/contrib/android/$_BASH_SCRIPTNAME" ]; then
+                ln -s "$_CJDSCRIPT_HOME/download/cjdns/contrib/android/$_BASH_SCRIPTNAME" .
             else
-                echo "==> Warning: ${_BASH_SCRIPTNAME} does not exist and won't be installed"
+                echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} $_BASH_SCRIPTNAME does not exist and won't be installed"
             fi
         done
-    else
-        echo "==> Warning: Not including bash scripts (bash is not available)"
-    fi
+    } || {
+        # Display an error stating that bash scripts won't be available
+        echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} Not including bash scripts (bash is not available)"
+    }
 }
 
-# NODE SETUP FUNCTION (triggered by setup_scripts)
+# NODE.JS SETUP: Triggered by setup_scripts to configure supported node.js scripts
 function setup_node {
     _NODEJS_BINPATH=$(type -P node)
     [[ -z "$_NODEJS_BINPATH" ]] && _NODEJS_BINPATH=$(type -P nodejs)
-    if [ -f "$_NODEJS_BINPATH" ]; then
-        # SETUP NODEJS LINKS
-        ln -s "$_NODEJS_BINPATH" "${_CJDSCRIPT_HOME}/bin/node"
-        ln -s "$_NODEJS_BINPATH" "${_CJDSCRIPT_HOME}/bin/nodejs"
+    [[ -f "$_NODEJS_BINPATH" ]] && {
+        echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} Configuring ${_COLOUR_NAME}node.js${_COLOUR_RESET} scripts"
 
-        # INSTALL NODEJS LIBRARIES
-        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/lib" .
-        ln -f -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/cjdnsadmin" ..
+        # Setup nodejs links
+        ln -s "$_NODEJS_BINPATH" "$_CJDSCRIPT_HOME/bin/node"
+        ln -s "$_NODEJS_BINPATH" "$_CJDSCRIPT_HOME/bin/nodejs"
 
-        # SETUP NODEJS SCRIPTS
+        # Install nodejs libraries
+        ln -f -s "$_CJDSCRIPT_HOME/download/cjdns/contrib/nodejs/tools/lib" .
+        ln -f -s "$_CJDSCRIPT_HOME/download/cjdns/contrib/nodejs/cjdnsadmin" ..
+
+        # Setup cjdnsadmin
+        [[ $(type -P npm) ]] && {
+            pushd "$_CJDSCRIPT_HOME/download/cjdns/contrib/nodejs/admin" >/dev/null
+            npm install >/dev/null
+            popd >/dev/null
+            echo -e '#!/usr/bin/env bash\n\ncd "${0%/*}"/../download/cjdns/contrib/nodejs/admin\nnode admin.js' \
+                > "$_CJDSCRIPT_HOME/download/cjdns/contrib/nodejs/admin.js"
+            chmod 755 "$_CJDSCRIPT_HOME/download/cjdns/contrib/nodejs/admin.js"
+        } || {
+            # Display an error stating that cjdnsadmin won't be available
+            echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} Not including node.js CJDNS admin panel (npm is not available)"
+        }
+
+        # Setup nodejs scripts
         for _NODEJS_SCRIPTNAME in ${_NODEJS_SCRIPTS[@]}; do
-            if [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/${_NODEJS_SCRIPTNAME}" ]]; then
-                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/${_NODEJS_SCRIPTNAME}" .
-            elif  [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_NODEJS_SCRIPTNAME}" ]]; then
-                ln -s "${_CJDSCRIPT_HOME}/download/cjdns/contrib/nodejs/tools/${_NODEJS_SCRIPTNAME}" .
+            if [[ -f "$_CJDSCRIPT_HOME/download/cjdns/contrib/nodejs/$_NODEJS_SCRIPTNAME" ]]; then
+                ln -s "$_CJDSCRIPT_HOME/download/cjdns/contrib/nodejs/$_NODEJS_SCRIPTNAME" .
+            elif [[ -f "$_CJDSCRIPT_HOME/download/cjdns/contrib/nodejs/tools/$_NODEJS_SCRIPTNAME" ]]; then
+                ln -s "$_CJDSCRIPT_HOME/download/cjdns/contrib/nodejs/tools/$_NODEJS_SCRIPTNAME" .
             else
-                echo "==> Warning: ${_NODEJS_SCRIPTNAME} does not exist and won't be installed"
+                echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} $_NODEJS_SCRIPTNAME does not exist and won't be installed"
             fi
         done
-    else
-        echo "==> Warning: Not including node.js scripts (node/nodejs is not available)"
-    fi
+    } || {
+        # Display an error stating that node.js scripts won't be available
+        echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} Not including node.js scripts (node/nodejs is not available)"
+    }
 }
 
-# BINARY SETUP FUNCTION (triggered by setup_scripts)
+# BINARY SETUP: Triggered by setup_scripts to configure supported binaries
 function setup_binaries {
-    if [ -f "${_CJDSCRIPT_HOME}/bin/python" -a -f "${_CJDSCRIPT_HOME}/bin/node" ]; then
-        # BUILD CJDNS
-        cd ${_CJDSCRIPT_HOME}/download/cjdns
-        echo "==> Building..."
-        eval sh "do" $QUIET
+    # Build CJDNS if node and python2 are available
+    [[ -e "$_CJDSCRIPT_HOME/bin/python" ]] && [[ -e "$_CJDSCRIPT_HOME/bin/node" ]] && {
+        echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} Configuring ${_COLOUR_NAME}binaries${_COLOUR_RESET}"
 
-        cd "${_CJDSCRIPT_HOME}/bin"
+        pushd "$_CJDSCRIPT_HOME/download/cjdns" >/dev/null
+        eval bash "do" $_SILENT_OUTPUT
+        cd "$_CJDSCRIPT_HOME/bin"
+
         for _CJDNS_BINARYNAME in ${_BINARIES[@]}; do
-            [[ -f "${_CJDSCRIPT_HOME}/download/cjdns/${_CJDNS_BINARYNAME}" ]] \
-                && ln -s "${_CJDSCRIPT_HOME}/download/cjdns/${_CJDNS_BINARYNAME}" . \
-                || echo "==> Warning: ${_CJDNS_BINARYNAME} does not exist and won't be installed"
+            [[ -f "$_CJDSCRIPT_HOME/download/cjdns/$_CJDNS_BINARYNAME" ]] \
+                && ln -s "$_CJDSCRIPT_HOME/download/cjdns/$_CJDNS_BINARYNAME" . \
+                || echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} $_CJDNS_BINARYNAME does not exist and won't be installed"
         done
-    else
-        echo "==> Warning: Not building binaries (python2 and node are required)"
-    fi
+        popd >/dev/null
+    } || {
+        # Display an error stating that compiled binaries won't be available
+        echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} Not building binaries (python2 and node are required)"
+    }
 }
 
-# MAIN SETUP FUNCTION: CONFIGURES _CJDSCRIPT_HOME AND RUN SETUP FUNCTIONS (cjdscript -u | --update | -v | verbose-update)
+# MAIN SETUP: Configures _CJDSCRIPT_HOME then runs each of the setup functions
 function setup_scripts {
-    echo "==> Setting up configuration directory..."
+    # Create the download folder if it doesn't already exist
+    echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} Running setup and configuration for ${_COLOUR_NAME}cjdscript${_COLOUR_RESET}"
+    [[ ! -d "$_CJDSCRIPT_HOME/download" ]] && install -d "$_CJDSCRIPT_HOME/download"
 
-    # CLONE OR UPDATE THE CJDNS REPO
-    [[ ! -d "${_CJDSCRIPT_HOME}/bin" ]] && install -d "${_CJDSCRIPT_HOME}/download"
-    if [ ! -d "${_CJDSCRIPT_HOME}/download/cjdns" ]; then
-        cd "${_CJDSCRIPT_HOME}/download"
-        echo "==> Cloning repo..."
-        eval git clone "${_CJDNS_REPO}" $QUIET
-    else
-        cd "${_CJDSCRIPT_HOME}/download/cjdns"
-        echo "==> Updating repo..."
-        eval git reset --hard $QUIET
-        eval git clean -dxf $QUIET
-        eval git pull $QUIET
-    fi
+    # Clone the CJDNS repo if it doesn't exist or update it if it does
+    [[ ! -d "$_CJDSCRIPT_HOME/download/cjdns" ]] && {
+        pushd "$_CJDSCRIPT_HOME/download" >/dev/null
+        echo -en "${_COLOUR_HEADING}==>${_COLOUR_RESET} Cloning ${_COLOUR_HIGHLIGHT}${_CJDNS_REPO}${_COLOUR_RESET} in ${_COLOUR_HIGHLIGHT}${_CJDSCRIPT_HOME}/download${_COLOUR_RESET}... "
+        eval git clone "$_CJDNS_REPO" $_SILENT_OUTPUT
+        echo -e "${_COLOUR_GOOD}DONE!${_COLOUR_RESET}"
+        popd >/dev/null
+    } || {
+        pushd "$_CJDSCRIPT_HOME/download/cjdns" >/dev/null
+        echo -en "${_COLOUR_HEADING}==>${_COLOUR_RESET} Updating the ${_COLOUR_NAME}cjdns${_COLOUR_RESET} repo @ ${_COLOUR_HIGHLIGHT}${_CJDSCRIPT_HOME}/download/cjdns${_COLOUR_RESET}... "
+        eval git reset --hard $_SILENT_OUTPUT
+        eval git clean -dxf $_SILENT_OUTPUT
+        eval git pull $_SILENT_OUTPUT
+        echo -e "${_COLOUR_GOOD}DONE!${_COLOUR_RESET}"
+        popd >/dev/null
+    }
 
-    # DELETE AND REMAKE THE BIN AND LIB DIRECTORIES IF THEY EXIST
-    [[ -d "${_CJDSCRIPT_HOME}/bin" ]] && rm -rf "${_CJDSCRIPT_HOME}/bin"
-    [[ -d "${_CJDSCRIPT_HOME}/lib" ]] && rm -rf "${_CJDSCRIPT_HOME}/lib"
-    install -d "${_CJDSCRIPT_HOME}/bin"
-    install -d "${_CJDSCRIPT_HOME}/lib"
-    cd "${_CJDSCRIPT_HOME}/bin"
+    # Delete the lib folder if it exists then create a new one
+    [[ -d "$_CJDSCRIPT_HOME/lib" ]] && rm -rf "$_CJDSCRIPT_HOME/lib"
+    install -d "$_CJDSCRIPT_HOME/lib"
 
-    # RUN SETUP FUNCTIONS
-    echo "==> Configuring executables and scripts..."
+    # Delete the bin folder if it exists then create a new one and enter it
+    [[ -d "$_CJDSCRIPT_HOME/bin" ]] && rm -rf "$_CJDSCRIPT_HOME/bin"
+    install -d "$_CJDSCRIPT_HOME/bin"
+
+    # Run setup for each script type + binaries
+    pushd "$_CJDSCRIPT_HOME/bin" >/dev/null
     setup_bash
     setup_node
     setup_python2
     setup_binaries
+    popd >/dev/null
 
-    # UPDATE DIRECTORY VERSION
-    echo "$_DIRVERSION" > "${_CJDSCRIPT_HOME}/.dirver"
+    # Update directory version
+    echo -e "$_CJDSCRIPT_VERSION" > "$_CJDSCRIPT_HOME/.dirver"
 
-    # OUTPUT INFORMATION, RUN HELP AND EXIT
-    echo -e "==> Finished update!\n"
-    echo "==> The cjdscript directory is: ${_CJDSCRIPT_HOME}"
-    cjdscript_help
+    # Output information, run help and exit
+    echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} Finished configuring ${_COLOUR_NAME}cjdscript${_COLOUR_RESET} root @ ${_COLOUR_HIGHLIGHT}${_CJDSCRIPT_HOME}${_COLOUR_RESET}"
+    cjdscript_help 0
 }
 
-# FUNCTION TO LIST SCRIPTS (cjdscript -l | --list)
+# Takes a title and list of scripts prints them stylishly in a terminal, or lists them in a pipe
+function display_scriptlist() {
+    TITLE="$1"
+    shift
+
+    # Build an array of only the available scripts
+    SCRIPTS=()
+    for script in ${@}; do
+        [[ -f "$_CJDSCRIPT_HOME/bin/$script" ]] \
+            && SCRIPTS=(${SCRIPTS[@]} "$script")
+    done
+    [[ ${#SCRIPTS[*]} = 0 ]] \
+        && return 1
+
+    [[ -t 1 ]] && {
+        # Find the column width (the length of the longest script name + 1 for spacing)
+        COLWIDTH=0
+        ALLSCRIPTS=(${_BASH_SCRIPTS[@]} ${_BINARIES[@]} ${_NODEJS_SCRIPTS[@]} ${_PYTHON2_SCRIPTS[@]})
+        for script in ${ALLSCRIPTS[@]}; do
+            if [ $(wc -c <<< "$script") -gt $COLWIDTH ]; then
+                COLWIDTH=$(wc -c <<< "$script")
+            fi
+        done
+        COLWIDTH=$(( $COLWIDTH + 3 ))
+
+        # Find the number of scripts that can be squeezed on a single line
+        SCRIPTS_PER_LINE=1
+        while [ $(( $(( $SCRIPTS_PER_LINE + 1 )) * $COLWIDTH)) -lt $(( $(tput cols) - 2 )) ]; do
+            SCRIPTS_PER_LINE=$(( $SCRIPTS_PER_LINE + 1 ))
+        done
+        while [ $(( $SCRIPTS_PER_LINE * $(( $COLWIDTH + 1 )) )) -lt $(( $(tput cols) - 2 )) ]; do
+            COLWIDTH=$(( $COLWIDTH + 1 ))
+        done
+        COLWIDTH=$(( $COLWIDTH - 2 ))
+
+        LEFTGAP=$(( $(( $(( $COLWIDTH - $(wc -c <<< "$TITLE") )) / 2 )) + 1 ))
+        RIGHTGAP=$(( $(( $COLWIDTH - $(wc -c <<< "$TITLE") )) - $LEFTGAP ))
+        printf "%${LEFTGAP}s${_COLOUR_HEADING}%s${_COLOUR_RESET}%${RIGHTGAP}s\n" "" "$TITLE" ""
+
+        COUNT=0
+        echo -n " "
+        for script in ${SCRIPTS[@]}; do
+            LEFTGAP=$(( $(( $COLWIDTH - $(wc -c <<< "$script") )) / 2 ))
+            RIGHTGAP=$(( $(( $COLWIDTH - $(wc -c <<< "$script") )) - $LEFTGAP ))
+            [[ $COUNT -ge $SCRIPTS_PER_LINE ]] && {
+                COUNT=0
+                echo -ne "\n "
+            }
+            [[ ! $COUNT = 0 ]] && echo -ne " ${_COLOUR_DIVIDER}|${_COLOUR_RESET} "
+            printf "%${LEFTGAP}s${_COLOUR_HIGHLIGHT}%s${_COLOUR_RESET}%${RIGHTGAP}s" "" "$script" ""
+            COUNT=$(expr $COUNT + 1)
+        done
+        echo -e '\n'
+    } || {
+        echo -n "${TITLE}:"
+        for script in ${SCRIPTS[@]}; do
+            echo -n " $script"
+        done
+        echo
+    }
+}
+
+# LIST SCRIPTS: Output a list of the working scripts
 function list_scripts {
-    SCRIPTS_PER_LINE=4
-    echo
+    [[ ! -f "$_CJDSCRIPT_HOME/bin/bash" ]] && unset _BASH_SCRIPTS
+    [[ ! -f "$_CJDSCRIPT_HOME/bin/node" ]] && unset _NODEJS_SCRIPTS
+    [[ ! -f "$_CJDSCRIPT_HOME/bin/python2" ]] && unset _PYTHON2_SCRIPTS
+    [[ ! -f "$_CJDSCRIPT_HOME/bin/cjdroute" ]] && unset _BINARIES
 
-    # LIST BASH SCRIPTS
-    if [ -f "${_CJDSCRIPT_HOME}/bin/bash" ]; then
-        echo -n -e "BASH:\n "
-        COUNT=0
-        for _BASH_SCRIPTNAME in ${_BASH_SCRIPTS[@]}; do
-            if [ "$COUNT" = "$SCRIPTS_PER_LINE" ]; then
-                COUNT=1
-                echo -e -n "\n "
-            else
-                COUNT=$(expr $COUNT + 1)
-            fi
-            [[ -f "${_CJDSCRIPT_HOME}/bin/${_BASH_SCRIPTNAME}" ]] \
-                && echo -n -e " ${_BASH_SCRIPTNAME}"
-        done
-        echo -e "\n"
-    fi
+    # List Bash scripts
+    display_scriptlist "BASH SCRIPTS" "${_BASH_SCRIPTS[@]}"
 
-    # LIST NODEJS SCRIPTS
-    if [ $(type -P node) ]; then
-        echo -n -e "NODEJS:\n "
-        COUNT=0
-        for _NODEJS_SCRIPTNAME in ${_NODEJS_SCRIPTS[@]}; do
-            if [ "$COUNT" = "$SCRIPTS_PER_LINE" ]; then
-                COUNT=1
-                echo -e -n "\n "
-            else
-                COUNT=$(expr $COUNT + 1)
-            fi
-            [[ -f "${_CJDSCRIPT_HOME}/bin/${_NODEJS_SCRIPTNAME}" ]] \
-                && echo -n -e " ${_NODEJS_SCRIPTNAME}"
-        done
-        echo -e "\n"
-    fi
+    # List Node.js scripts
+    display_scriptlist "NODE.JS SCRIPTS" "${_NODEJS_SCRIPTS[@]}"
 
-    # LIST PYTHON2 SCRIPTS
-    if [ -f "${_CJDSCRIPT_HOME}/bin/python" ]; then
-        echo -n -e "PYTHON2:\n "
-        COUNT=0
-        for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
-            if [ "$COUNT" = "$SCRIPTS_PER_LINE" ]; then
-                COUNT=1
-                echo -e -n "\n "
-            else
-                COUNT=$(expr $COUNT + 1)
-            fi
-            [[ -f "${_CJDSCRIPT_HOME}/bin/${_PYTHON2_SCRIPTNAME}" ]] \
-                && echo -n -e " ${_PYTHON2_SCRIPTNAME}"
-        done
-        echo -e "\n"
-    fi
+    # List Python2 scripts
+    display_scriptlist "PYTHON2 SCRIPTS" "${_PYTHON2_SCRIPTS[@]}"
 
-    # LIST CJDNS BINARIES
-    if [ -f "${_CJDSCRIPT_HOME}/bin/cjdroute" ]; then
-        echo -n -e "BINARIES:\n "
-        COUNT=0
-        for CJDNS_BINARYNAME in ${_BINARIES[@]}; do
-            if [ "$COUNT" = "$SCRIPTS_PER_LINE" ]; then
-                COUNT=1
-                echo -e -n "\n "
-            else
-                COUNT=$(expr $COUNT + 1)
-            fi
-            [[ -f "${_CJDSCRIPT_HOME}/bin/${CJDNS_BINARYNAME}" ]] \
-                && echo -n -e " ${CJDNS_BINARYNAME}"
-        done
-        echo -e "\n"
-    fi
+    # List CJDNS binaries
+    display_scriptlist "BINARIES" "${_BINARIES[@]}"
+
+    exit 0
 }
 
-# FUNCTION TO OUTPUT HELP INFORMATION (cjdscript -h | --help)
+# HELP: Output usage information and the list of valid options
 function cjdscript_help {
-    echo -e "\nUSAGE:\n  ${APPNAME} [OPTION]\n  ${APPNAME} [SCRIPTNAME] [OPTION] [OPTION...]\n"
-    echo "OPTIONS:"
-    echo -e "  -u | --update: Update/setup symlinks, libs and scripts"
-    echo -e "  -v | --verbose-update: Update/setup with verbose output"
-    echo -e "  -l | --list: Lists available scripts"
-    echo -e "  -h | --help: Show this help\n"
+    echo -e "\n${_COLOUR_HEADING}USAGE${_COLOUR_RESET}\n  ${_COLOUR_HIGHLIGHT}${_SCRIPT_NAME}${_COLOUR_RESET} ${_COLOUR_DIVIDER}[${_COLOUR_NAME}OPTION${_COLOUR_DIVIDER}]${_COLOUR_RESET}\n  ${_COLOUR_HIGHLIGHT}${_SCRIPT_NAME}${_COLOUR_RESET} ${_COLOUR_DIVIDER}[${_COLOUR_NAME}SCRIPT${_COLOUR_DIVIDER}]${_COLOUR_RESET} ${_COLOUR_DIVIDER}[${_COLOUR_NAME}OPTION${_COLOUR_DIVIDER}]${_COLOUR_RESET} ${_COLOUR_DIVIDER}[${_COLOUR_NAME}OPTION...${_COLOUR_DIVIDER}]${_COLOUR_RESET}\n"
+    echo -e "${_COLOUR_HEADING}OPTIONS${_COLOUR_RESET}"
+    echo -e "  ${_COLOUR_NAME}-u ${_COLOUR_DIVIDER}| ${_COLOUR_NAME}--update${_COLOUR_RESET}  ${_COLOUR_DIVIDER}→${_COLOUR_RESET} update/setup symlinks, libs and scripts"
+    echo -e "  ${_COLOUR_NAME}-v ${_COLOUR_DIVIDER}| ${_COLOUR_NAME}--verbose${_COLOUR_RESET} ${_COLOUR_DIVIDER}→${_COLOUR_RESET} update/setup with verbose output"
+    echo -e "  ${_COLOUR_NAME}-l ${_COLOUR_DIVIDER}| ${_COLOUR_NAME}--list${_COLOUR_RESET}    ${_COLOUR_DIVIDER}→${_COLOUR_RESET} display the list of working scripts"
+    echo -e "  ${_COLOUR_NAME}-h ${_COLOUR_DIVIDER}| ${_COLOUR_NAME}--help${_COLOUR_RESET}    ${_COLOUR_DIVIDER}→${_COLOUR_RESET} show this help and exit\n"
+    exit $1
 }
 
-# FAIL IF NO ARGUMENTS ARE GIVEN
-if [ -z "$1" ]; then
-    echo -e "==> Error: ${APPNAME} must be run with a valid command"
-    cjdscript_help
-    exit 1
-fi
+# Fail if no arguments are given
+[[ -z "$1" ]] && {
+    echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_ERROR}ERROR:${_COLOUR_RESET} $_SCRIPT_NAME must be run with a valid command"
+    cjdscript_help 1
+}
 
-# PARSE ARGUMENTS
-case "$1" in
-    -h|--help)
-        cjdscript_help
-        ;;
-    -l|--list)
-        list_scripts
-        ;;
-    -u|--update)
-        setup_scripts
-        exit 0
-        ;;
-    -v|--verbose-update)
-        unset QUIET
-        setup_scripts
-        exit 0
-        ;;
-    *)
-        # PERFORM UPDATE IF NECESSARY
-        if [ ! -d "${_CJDSCRIPT_HOME}/download/cjdns" ] \
-            || [ ! -d "${_CJDSCRIPT_HOME}/bin" ] \
-            || [ ! -f "${_CJDSCRIPT_HOME}/.dirver" ] \
-            || [ ! $(cat "${_CJDSCRIPT_HOME}/.dirver") = "$_DIRVERSION" ]; then
-                echo "==> Warning: The configuration directory needs to be updated..."
-                setup_scripts
-        fi
+# Parse arguments
+while [ -n "$1" ]; do
+    case "$1" in
+        -h|--help)
+            cjdscript_help 0
+            ;;
+        -l|--list)
+            list_scripts
+            shift
+            ;;
+        -u|--update)
+            # Make sure this is what the user wants if a folder already exists
+            [[ -d "$_CJDSCRIPT_HOME" ]] && {
+                echo -ne "${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} This deletes the ${_COLOUR_NAME}cjdscript${_COLOUR_RESET} folder, are you sure? (Type ${_COLOUR_HEADING}YES${_COLOUR_RESET} to continue): "
+                read CHOICE
+                [[ ! "$CHOICE" = 'YES' ]] && {
+                    echo -e "${_COLOUR_NAME}cjdscript${_COLOUR_RESET} will ${_COLOUR_UNDERLINE}not${_COLOUR_RESET} be updated"
+                    exit 0
+                }
+            }
+            echo "setup_scripts"
+            shift
+            ;;
+        -v|--verbose)
+            unset _SILENT_OUTPUT
+            shift
+            ;;
+        *)
+            # Perform update if necessary
+            if [ ! -d "$_CJDSCRIPT_HOME/download/cjdns" ] || \
+               [ ! -d "$_CJDSCRIPT_HOME/bin" ] || \
+               [ ! -f "$_CJDSCRIPT_HOME/.dirver" ] || \
+               [ ! $(cat "$_CJDSCRIPT_HOME/.dirver") = $_CJDSCRIPT_VERSION ]; then
+                    echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} The configuration directory needs to be updated..."
+                    setup_scripts
+            fi
 
-        # RUN COMMAND
-        if [[ -f "${_CJDSCRIPT_HOME}/bin/${1}" ]]; then
-            "$@"
-        else
-            echo -e "==> Error: ${1} is not a valid command\n"
-            cjdscript_help
-            exit 1
-        fi
-        ;;
-esac
+            # Run command
+            [[ -f "$_CJDSCRIPT_HOME/bin/$1" ]] && "$@" || {
+                echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_ERROR}ERROR:${_COLOUR_RESET} $1 is not a valid command\n"
+                cjdscript_help 1
+            }
+            shift
+            ;;
+    esac
+done
 exit 0
