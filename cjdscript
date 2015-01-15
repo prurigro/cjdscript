@@ -2,13 +2,13 @@
 #
 # cjdscript: a script to deploy and run the collection of working tools included with cjdns
 #
-# version: 6
+# version: 6.0.1
 #
 # written by Kevin MacMartin
 # licensed under the GPLv3
 #
 
-# CJDSCRIPT VERSION: This value is saved to ~/.cjdscript/.dirver and will trigger an update when different
+# CJDSCRIPT VERSION: This value is saved to ~/.cjdscript/.dirver and will trigger an update when different (major number only)
 _CJDSCRIPT_VERSION="6"
 
 # CJDSCRIPT ROOT: Base directory for cjdscript files to be installed
@@ -44,7 +44,7 @@ _SCRIPT_NAME="${0##*/}"
     _COLOUR_HIGHLIGHT='\e[1;33m' # YELLOW
     _COLOUR_GOOD='\e[1;32m'      # GREEN
     _COLOUR_ERROR='\e[1;31m'     # RED
-    _COLOUR_UNDERLINE='\e[4m' # WHITE
+    _COLOUR_UNDERLINE='\e[4m'    # WHITE
     _COLOUR_RESET='\e[0m'        # DISABLES COLOUR
 }
 
@@ -369,6 +369,7 @@ function list_scripts {
     [[ ! -f "$_CJDSCRIPT_HOME/bin/node" ]] && unset _NODEJS_SCRIPTS
     [[ ! -f "$_CJDSCRIPT_HOME/bin/python2" ]] && unset _PYTHON2_SCRIPTS
     [[ ! -f "$_CJDSCRIPT_HOME/bin/cjdroute" ]] && unset _BINARIES
+    echo
 
     # List Bash scripts
     display_scriptlist "BASH SCRIPTS" "${_BASH_SCRIPTS[@]}"
@@ -422,7 +423,7 @@ while [ -n "$1" ]; do
                     exit 0
                 }
             }
-            echo "setup_scripts"
+            setup_scripts
             shift
             ;;
         -v|--verbose)
