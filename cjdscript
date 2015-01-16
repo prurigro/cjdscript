@@ -2,7 +2,7 @@
 #
 # cjdscript: a script to deploy and run the collection of working tools included with cjdns
 #
-# version: 6.1
+# version: 6.2
 #
 # written by Kevin MacMartin
 # licensed under the GPLv3
@@ -403,6 +403,8 @@ function cjdscript_help {
     cjdscript_help 1
 }
 
+unset _TRIGGER_LIST _TRIGGER_UPDATE
+
 # Parse arguments
 while [ -n "$1" ]; do
     case "$1" in
@@ -410,20 +412,11 @@ while [ -n "$1" ]; do
             cjdscript_help 0
             ;;
         -l|--list)
-            list_scripts
+            _TRIGGER_LIST=1
             shift
             ;;
         -u|--update)
-            # Make sure this is what the user wants if a folder already exists
-            [[ -d "$_CJDSCRIPT_HOME" ]] && {
-                echo -ne "${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} This deletes the ${_COLOUR_NAME}cjdscript${_COLOUR_RESET} folder, are you sure? (Type ${_COLOUR_HEADING}YES${_COLOUR_RESET} to continue): "
-                read CHOICE
-                [[ ! "$CHOICE" = 'YES' ]] && {
-                    echo -e "${_COLOUR_NAME}cjdscript${_COLOUR_RESET} will ${_COLOUR_UNDERLINE}not${_COLOUR_RESET} be updated"
-                    exit 0
-                }
-            }
-            setup_scripts
+            _TRIGGER_UPDATE=1
             shift
             ;;
         -v|--verbose)
@@ -436,8 +429,7 @@ while [ -n "$1" ]; do
                [ ! -d "$_CJDSCRIPT_HOME/bin" ] || \
                [ ! -f "$_CJDSCRIPT_HOME/.dirver" ] || \
                [ ! $(cat "$_CJDSCRIPT_HOME/.dirver") = $_CJDSCRIPT_VERSION ]; then
-                    echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} The configuration directory needs to be updated..."
-                    setup_scripts
+                    echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} The configuration directory needs to be updated...\n"
             fi
 
             # Run command
@@ -449,4 +441,19 @@ while [ -n "$1" ]; do
             ;;
     esac
 done
+
+[[ -n "$_TRIGGER_LIST" ]] && list_scripts
+[[ -n "$_TRIGGER_UPDATE" ]] && {
+    # Make sure this is what the user wants if a folder already exists
+    [[ -d "$_CJDSCRIPT_HOME" ]] && {
+        echo -ne "${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} This deletes the ${_COLOUR_NAME}cjdscript${_COLOUR_RESET} folder, are you sure? (Type ${_COLOUR_HEADING}YES${_COLOUR_RESET} to continue): "
+        read CHOICE
+        [[ ! "$CHOICE" = 'YES' ]] && {
+            echo -e "${_COLOUR_NAME}cjdscript${_COLOUR_RESET} will ${_COLOUR_UNDERLINE}not${_COLOUR_RESET} be updated"
+            exit 0
+        }
+    }
+    setup_scripts
+}
+
 exit 0
