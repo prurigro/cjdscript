@@ -2,7 +2,7 @@
 #
 # cjdscript: a script to deploy and run the collection of working tools included with cjdns
 #
-# version: 6.2
+# version: 6.3
 #
 # written by Kevin MacMartin
 # licensed under the GPLv3
@@ -391,7 +391,7 @@ function cjdscript_help {
     echo -e "\n${_COLOUR_HEADING}USAGE${_COLOUR_RESET}\n  ${_COLOUR_HIGHLIGHT}${_SCRIPT_NAME}${_COLOUR_RESET} ${_COLOUR_DIVIDER}[${_COLOUR_NAME}OPTION${_COLOUR_DIVIDER}]${_COLOUR_RESET}\n  ${_COLOUR_HIGHLIGHT}${_SCRIPT_NAME}${_COLOUR_RESET} ${_COLOUR_DIVIDER}[${_COLOUR_NAME}SCRIPT${_COLOUR_DIVIDER}]${_COLOUR_RESET} ${_COLOUR_DIVIDER}[${_COLOUR_NAME}OPTION${_COLOUR_DIVIDER}]${_COLOUR_RESET} ${_COLOUR_DIVIDER}[${_COLOUR_NAME}OPTION...${_COLOUR_DIVIDER}]${_COLOUR_RESET}\n"
     echo -e "${_COLOUR_HEADING}OPTIONS${_COLOUR_RESET}"
     echo -e "  ${_COLOUR_NAME}-u ${_COLOUR_DIVIDER}| ${_COLOUR_NAME}--update${_COLOUR_RESET}  ${_COLOUR_DIVIDER}→${_COLOUR_RESET} update/setup symlinks, libs and scripts"
-    echo -e "  ${_COLOUR_NAME}-v ${_COLOUR_DIVIDER}| ${_COLOUR_NAME}--verbose${_COLOUR_RESET} ${_COLOUR_DIVIDER}→${_COLOUR_RESET} update/setup with verbose output"
+    echo -e "  ${_COLOUR_NAME}-v ${_COLOUR_DIVIDER}| ${_COLOUR_NAME}--verbose${_COLOUR_RESET} ${_COLOUR_DIVIDER}→${_COLOUR_RESET} run with the update command for verbose output"
     echo -e "  ${_COLOUR_NAME}-l ${_COLOUR_DIVIDER}| ${_COLOUR_NAME}--list${_COLOUR_RESET}    ${_COLOUR_DIVIDER}→${_COLOUR_RESET} display the list of working scripts"
     echo -e "  ${_COLOUR_NAME}-h ${_COLOUR_DIVIDER}| ${_COLOUR_NAME}--help${_COLOUR_RESET}    ${_COLOUR_DIVIDER}→${_COLOUR_RESET} show this help and exit\n"
     exit $1
@@ -404,6 +404,14 @@ function cjdscript_help {
 }
 
 unset _TRIGGER_LIST _TRIGGER_UPDATE
+
+# Warn that an update is necessary if any of a number of conditions are the case
+if [ ! -d "$_CJDSCRIPT_HOME/download/cjdns" ] || \
+   [ ! -d "$_CJDSCRIPT_HOME/bin" ] || \
+   [ ! -f "$_CJDSCRIPT_HOME/.dirver" ] || \
+   [ ! $(cat "$_CJDSCRIPT_HOME/.dirver") = $_CJDSCRIPT_VERSION ]; then
+        echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} The configuration directory needs to be updated...\n"
+fi
 
 # Parse arguments
 while [ -n "$1" ]; do
@@ -424,20 +432,14 @@ while [ -n "$1" ]; do
             shift
             ;;
         *)
-            # Perform update if necessary
-            if [ ! -d "$_CJDSCRIPT_HOME/download/cjdns" ] || \
-               [ ! -d "$_CJDSCRIPT_HOME/bin" ] || \
-               [ ! -f "$_CJDSCRIPT_HOME/.dirver" ] || \
-               [ ! $(cat "$_CJDSCRIPT_HOME/.dirver") = $_CJDSCRIPT_VERSION ]; then
-                    echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_HIGHLIGHT}WARNING:${_COLOUR_RESET} The configuration directory needs to be updated...\n"
-            fi
-
             # Run command
-            [[ -f "$_CJDSCRIPT_HOME/bin/$1" ]] && "$@" || {
-                echo -e "${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_ERROR}ERROR:${_COLOUR_RESET} $1 is not a valid command\n"
+            [[ -f "$_CJDSCRIPT_HOME/bin/$1" ]] && {
+                "$@"
+                exit $?
+            } || {
+                echo -e "\n${_COLOUR_HEADING}==>${_COLOUR_RESET} ${_COLOUR_ERROR}ERROR:${_COLOUR_RESET} $1 is not a valid command"
                 cjdscript_help 1
             }
-            shift
             ;;
     esac
 done
