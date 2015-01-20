@@ -554,7 +554,7 @@ done
         echo -ne "\n${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR Update the root filesystem @ ${_C_WHITE}${_CJDSCRIPT_ROOT}${_CLEAR}? ${_C_GREY}(${_CLEAR}${_C_BLUE}YES$_CLEAR to confirm${_C_GREY})$_CLEAR: "
         read CHOICE
         [[ ! "$CHOICE" = 'YES' ]] && {
-            echo -e "${_C_BLUE}==>$_CLEAR ${_C_WHITE}cjdscript$_CLEAR will ${_UNDERLINE}not$_CLEAR be updated"
+            echo -e "${_C_BLUE}==>$_CLEAR The ${_C_WHITE}cjdscript$_CLEAR root will ${_UNDERLINE}not$_CLEAR be updated"
             exit 0
         }
     }
