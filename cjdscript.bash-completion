@@ -1,0 +1,29 @@
+# cjdscript bash-completion
+#
+# install:
+#   custom  | /etc/bash_completion.d/cjdscript
+#   package | /usr/share/bash-completion/cjdscript
+#
+
+# Obtains the list of working scripts from cjdscript
+_cjdscript_scriptlist() {
+    cjdscript -l \
+        | sed 's|^[^:]*: ||' \
+        | sed ':a;N;$!ba;s|\n| |g'
+}
+
+# The bash-completion function for cjdscript
+_cjdscript() {
+    # Configure bash-completion variables and initialize
+    local cur prev words cword split
+    _init_completion -s || return
+
+    # Don't provide completion for command-line options
+    [[ ! $prev =~ ^(-u|--update|-v|--verbose|-l|--list|-h|--help)$ ]] \
+        || return
+
+    # Provide the list of scripts matching the current input
+    COMPREPLY=( $( compgen -W '$( _cjdscript_scriptlist )' -- "$cur" ) )
+} &&
+complete -F _cjdscript cjdscript
+
