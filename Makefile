@@ -13,7 +13,7 @@ RMDIR=rmdir -p --ignore-fail-on-non-empty
 PREFIX=/usr
 BIN_DIR=$(DESTDIR)$(PREFIX)/bin
 DOC_DIR=$(DESTDIR)$(PREFIX)/share/doc/$(SCRIPT_NAME)
-BASH_COMPLETION_DIR=$(DESTDIR)$(PREFIX)/share/bash-completion
+BASH_COMPLETION_DIR=$(DESTDIR)$(PREFIX)/share/bash-completion/completions
 
 install:
 	$(INSTALL_RX) $(SCRIPT_NAME) $(BIN_DIR)/$(SCRIPT_NAME)
