@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 #
-# cjdscript: a script to deploy and run the collection of working tools included with cjdns
+# cjdscript | Deploy and run the collection of working tools included with cjdns
 #
-# version: 7.1
+# Version 8
 #
-# written by Kevin MacMartin
-# licensed under the GPLv3
+# Written by Kevin MacMartin
+# Licensed under the GPLv3
 #
 
 # Name of the script file, for use in help and usage functionality
 _SCRIPT_NAME="${0##*/}"
 
 # VERSION: This is saved @ ~/.cjdscript/.dirver and will display an out-of-date warning when it doesn't match
-_CJDSCRIPT_VERSION="7"
+_CJDSCRIPT_VERSION="8"
 
 # CJDSCRIPT ROOT: Base directory for cjdscript files to be installed
 _CJDSCRIPT_ROOT="$HOME/.cjdscript"
@@ -24,7 +24,7 @@ _CJDSCRIPT_ROOT="$HOME/.cjdscript"
     && _CJDNS_BRANCH="master"
 
 # INCLUDED SCRIPTS: The scripts supported by cjdscripts, separated by language
-_BASH_SCRIPTS=('cjdroid-build.sh' 'ip6tables.sh' 'run-cjdroute.bash')
+_BASH_SCRIPTS=('cjdroid-build.sh' 'ip6tables.sh')
 _BINARIES=('cjdroute' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
 _NODEJS_SCRIPTS=('admin-panel' 'cjdnslog.js' 'dumptable.js' 'getLinks.js' 'makesim' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'ping' 'pingAll.js' 'pingflood.js' 'splice.js' 'traceroute')
 _PYTHON2_SCRIPTS=('cjdnsadminmaker.py' 'cjdnslog' 'drawgraph' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'graphStats' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
@@ -163,8 +163,6 @@ function setup_python2 {
 
     # Run the python2 configuration provided its executable was detected
     [[ -f "$_PYTHON2_BINPATH" ]] && {
-        echo -e "${_C_BLUE}==>$_CLEAR Linking ${_C_WHITE}python2$_CLEAR scripts"
-
         # Setup Python2 links and lib directory
         ln -f -s "$_PYTHON2_BINPATH" "$_CJDSCRIPT_ROOT/bin/python"
         ln -f -s "$_PYTHON2_BINPATH" "$_CJDSCRIPT_ROOT/bin/python2"
@@ -172,14 +170,15 @@ function setup_python2 {
         install -d "$PYTHONPATH"
 
         # Install CJDNS Python2 libraries
-        ln -f -s "$_CJDSCRIPT_ROOT/download/cjdns/contrib/python/cjdnsadmin" "$PYTHONPATH/cjdnsadmin"
+        rm -f "$PYTHONPATH/cjdnsadmin"
+        ln -s "$_CJDSCRIPT_ROOT/download/cjdns/contrib/python/cjdnsadmin" "$PYTHONPATH/cjdnsadmin"
 
         # INSTALL THIRD PARTY LIBRARIES
         cd "$_CJDSCRIPT_ROOT/download"
 
         # SETUPTOOLS: Download, build and install unless the current version is installed
         if [[ ! $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_SETUPTOOLS") ]]; then
-            _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "$(cut -d '-' -f 1 <<< $_PYINFO_SETUPTOOLS)"))
+            _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "${_PYINFO_SETUPTOOLS/-*}"))
             [[ -n "$_old_files" ]] && {
                 for pyobject in ${_old_files[@]}; do
                     rm -rf "$pyobject"
@@ -195,14 +194,21 @@ function setup_python2 {
                 eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_ROOT" $_SILENT_OUTPUT
                 cd "$_CJDSCRIPT_ROOT/download"
                 rm -rf setuptools
-                echo -e "${_C_GREEN}DONE!${_CLEAR}"
+                if [[ $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_SETUPTOOLS") ]]; then
+                    echo -e "${_C_GREEN}DONE!$_CLEAR"
+                else
+                    echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while installing"
+                fi
+            } || {
+                # Display an error stating that networkx didn't install correctly
+                echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while downloading"
             }
         fi
 
         if [[ $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_SETUPTOOLS") ]]; then
             # NETWORKX: Download, build and install unless the current version is installed
-            [[ ! $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_NETWORKX") ]] && {
-                _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "$(cut -d '-' -f 1 <<< $_PYINFO_NETWORKX)"))
+            if [ ! $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_NETWORKX") ]; then
+                _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "${_PYINFO_NETWORKX/-*}"))
                 [[ -n "$_old_files" ]] && {
                     for pyobject in ${_old_files[@]}; do
                         rm -rf "$pyobject"
@@ -217,16 +223,20 @@ function setup_python2 {
                     eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_ROOT" $_SILENT_OUTPUT
                     cd "$_CJDSCRIPT_ROOT/download"
                     rm -rf networkx
-                    echo -e "${_C_GREEN}DONE!${_CLEAR}"
+                    if [ $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_NETWORKX") ]; then
+                        echo -e "${_C_GREEN}DONE!${_CLEAR}"
+                    else
+                        echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while installing"
+                    fi
                 } || {
                     # Display an error stating that networkx didn't install correctly
-                    echo -e "${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR networkx did not install correctly"
+                    echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while downloading"
                 }
-            }
+            fi
 
             # PYSIDE: Download, build and install unless the current version is installed
             if [[ ! $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_PYSIDE") ]]; then
-                _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "$(cut -d '-' -f 1 <<< $_PYINFO_PYSIDE)"))
+                _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "${_PYINFO_PYSIDE/-*}"))
                 [[ -n "$_old_files" ]] && {
                     for pyobject in ${_old_files[@]}; do
                         rm -rf "$pyobject"
@@ -241,20 +251,24 @@ function setup_python2 {
                     eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_ROOT" $_SILENT_OUTPUT
                     cd "$_CJDSCRIPT_ROOT/download"
                     rm -rf PySide
-                    echo -e "${_C_GREEN}DONE!${_CLEAR}"
+                    if [[ $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_PYSIDE") ]]; then
+                        echo -e "${_C_GREEN}DONE!$_CLEAR"
+                    else
+                        echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while installing"
+                    fi
                 } || {
                     # Display an error stating that PySide didn't install correctly
-                    echo -e "${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR PySide did not install correctly"
+                    echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while downloading"
                 }
             fi
         else
             # Display an error stating that setuptools didn't install correctly and list the libraries this affects
-            echo -e "${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR setuptools did not install correctly so networkx and PySide won't be available"
+            echo -e "${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR networkx and PySide require setuptools and won't be installed"
         fi
 
         # MATPLOTLIB: Download, build and install unless the current version is installed
         if [[ ! $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_MATPLOTLIB") ]]; then
-            _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "$(cut -d '-' -f 1 <<< $_PYINFO_MATPLOTLIB)"))
+            _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "${_PYINFO_MATPLOTLIB/-*}"))
             [[ -n "$_old_files" ]] && {
                 for pyobject in ${_old_files[@]}; do
                     rm -rf "$pyobject"
@@ -270,16 +284,20 @@ function setup_python2 {
                 eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_ROOT" $_SILENT_OUTPUT
                 cd "$_CJDSCRIPT_ROOT/download"
                 rm -rf matplotlib
-                echo -e "${_C_GREEN}DONE!${_CLEAR}"
+                if [[ $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_MATPLOTLIB") ]]; then
+                    echo -e "${_C_GREEN}DONE!$_CLEAR"
+                else
+                    echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while installing"
+                fi
             } || {
                 # Display an error stating that matplotlib didn't install correctly
-                echo -e "${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR matplotlib did not install correctly"
+                echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while downloading"
             }
         fi
 
         # NUMPY: Download, build and install unless the current version is installed
         if [[ ! $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_NUMPY") ]]; then
-            _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "$(cut -d '-' -f 1 <<< $_PYINFO_NUMPY)"))
+            _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "${_PYINFO_NUMPY/-*}"))
             [[ -n "$_old_files" ]] && {
                 for pyobject in ${_old_files[@]}; do
                     rm -rf "$pyobject"
@@ -295,14 +313,19 @@ function setup_python2 {
                 eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_ROOT" $_SILENT_OUTPUT
                 cd "$_CJDSCRIPT_ROOT/download"
                 rm -rf numpy
-                echo -e "${_C_GREEN}DONE!${_CLEAR}"
+                if [[ $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_NUMPY") ]]; then
+                    echo -e "${_C_GREEN}DONE!$_CLEAR"
+                else
+                    echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while installing"
+                fi
             } || {
                 # Display an error stating that numpy didn't install correctly
-                echo -e "${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR numpy did not install correctly"
+                echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while downloading"
             }
         fi
 
         # INSTALL PYTHON2 SCRIPTS
+        echo -e "${_C_BLUE}==>$_CLEAR Linking ${_C_WHITE}python2$_CLEAR scripts"
         cd "$_CJDSCRIPT_ROOT/bin"
         for _PYTHON2_SCRIPTNAME in ${_PYTHON2_SCRIPTS[@]}; do
             if [ -f "$_CJDSCRIPT_ROOT/download/cjdns/contrib/python/$_PYTHON2_SCRIPTNAME" ]; then
@@ -321,13 +344,13 @@ function setup_python2 {
 function setup_binaries {
     # Build CJDNS if node and python2 are available
     [[ -e "$_CJDSCRIPT_ROOT/bin/python" ]] && [[ -e "$_CJDSCRIPT_ROOT/bin/node" ]] && {
-
-        echo -e "${_C_BLUE}==>$_CLEAR Building ${_C_WHITE}binaries${_CLEAR}"
+        echo -ne "${_C_BLUE}==>$_CLEAR Building ${_C_WHITE}binaries${_CLEAR}... "
         pushd "$_CJDSCRIPT_ROOT/download/cjdns" >/dev/null
         eval bash "do" $_SILENT_OUTPUT
+        echo -e "${_C_GREEN}DONE!$_CLEAR"
         cd "$_CJDSCRIPT_ROOT/bin"
 
-        echo -e "${_C_BLUE}==>$_CLEAR Linking ${_C_WHITE}binaries${_CLEAR}"
+        echo -e "${_C_BLUE}==>$_CLEAR Linking ${_C_WHITE}binaries$_CLEAR"
         for _CJDNS_BINARYNAME in ${_BINARIES[@]}; do
             [[ -f "$_CJDSCRIPT_ROOT/download/cjdns/$_CJDNS_BINARYNAME" ]] \
                 && ln -s "$_CJDSCRIPT_ROOT/download/cjdns/$_CJDNS_BINARYNAME" . \
@@ -343,25 +366,27 @@ function setup_binaries {
 # MAIN SETUP: Configures _CJDSCRIPT_ROOT then runs each of the setup functions
 function setup_scripts {
     # Create the download folder if it doesn't already exist
-    echo -e "\n${_C_BLUE}==>$_CLEAR Running setup and configuration for ${_C_WHITE}cjdscript${_CLEAR}"
+    echo -e "\n${_C_BLUE}==>$_CLEAR Running setup and configuration for ${_C_WHITE}cjdscript$_CLEAR"
     [[ ! -d "$_CJDSCRIPT_ROOT/download" ]] && install -d "$_CJDSCRIPT_ROOT/download"
 
     # Clone the CJDNS repo if it doesn't exist or update it if it does
     [[ ! -d "$_CJDSCRIPT_ROOT/download/cjdns" ]] && {
         pushd "$_CJDSCRIPT_ROOT/download" >/dev/null
-        echo -en "${_C_BLUE}==>$_CLEAR Cloning the ${_C_RED}${_CJDNS_BRANCH}${_CLEAR} branch of ${_C_YELLOW}${_CJDNS_REPO}${_CLEAR}... "
+        echo -en "${_C_BLUE}==>$_CLEAR Cloning the $_C_RED$_CJDNS_BRANCH${_CLEAR} branch of $_C_YELLOW$_CJDNS_REPO${_CLEAR}... "
         eval git clone "$_CJDNS_REPO" -b "$_CJDNS_BRANCH" $_SILENT_OUTPUT
-        echo -e "${_C_GREEN}DONE!${_CLEAR}"
+        echo -e "${_C_GREEN}DONE!$_CLEAR"
         popd >/dev/null
     } || {
         pushd "$_CJDSCRIPT_ROOT/download/cjdns" >/dev/null
-        echo -en "${_C_BLUE}==>$_CLEAR Cleaning and updating the ${_C_RED}${_CJDNS_BRANCH}${_CLEAR} branch of ${_C_YELLOW}${_CJDSCRIPT_ROOT}/download/cjdns${_CLEAR}... "
+        echo -en "${_C_BLUE}==>$_CLEAR Cleaning and updating the cjdns repo @ $_C_YELLOW${_CJDSCRIPT_ROOT}/download/cjdns${_CLEAR}... "
         eval git reset --hard $_SILENT_OUTPUT
         eval git clean -dxf $_SILENT_OUTPUT
         eval git pull origin $_SILENT_OUTPUT
-        echo -en "${_C_BLUE}==>$_CLEAR Checking out the ${_C_RED}${_CJDNS_BRANCH}${_CLEAR}... "
+        echo -e "${_C_GREEN}DONE!$_CLEAR"
+
+        echo -en "${_C_BLUE}==>$_CLEAR Checking out the $_C_RED$_CJDNS_BRANCH${_CLEAR} branch... "
         eval git checkout "$_CJDNS_BRANCH" $_SILENT_OUTPUT
-        echo -e "${_C_GREEN}DONE!${_CLEAR}"
+        echo -e "${_C_GREEN}DONE!$_CLEAR"
         popd >/dev/null
     }
 
@@ -386,7 +411,7 @@ function setup_scripts {
     echo -e "$_CJDSCRIPT_VERSION" > "$_CJDSCRIPT_ROOT/.dirver"
 
     # Output information, run help and exit
-    echo -e "${_C_BLUE}==>$_CLEAR Finished configuring ${_C_WHITE}cjdscript$_CLEAR root @ ${_C_YELLOW}${_CJDSCRIPT_ROOT}${_CLEAR}"
+    echo -e "${_C_BLUE}==>$_CLEAR Finished configuring ${_C_WHITE}cjdscript$_CLEAR root @ $_C_YELLOW$_CJDSCRIPT_ROOT$_CLEAR"
     cjdscript_help 0
 }
 
@@ -481,8 +506,8 @@ function list_scripts {
 
 # HELP: Output usage information and the list of valid options
 function cjdscript_help {
-    echo -e "\n${_C_BLUE}USAGE${_CLEAR}\n  ${_C_RED}${_SCRIPT_NAME}$_CLEAR ${_C_GREY}[${_C_GREEN}OPTION${_C_GREY}]${_CLEAR}\n  ${_C_RED}${_SCRIPT_NAME}$_CLEAR ${_C_GREY}[${_C_GREEN}SCRIPT${_C_GREY}]$_CLEAR ${_C_GREY}[${_C_GREEN}OPTION${_C_GREY}]$_CLEAR ${_C_GREY}[${_C_GREEN}OPTION...${_C_GREY}]${_CLEAR}\n"
-    echo -e "${_C_BLUE}OPTIONS${_CLEAR}"
+    echo -e "\n${_C_BLUE}USAGE${_CLEAR}\n  $_C_RED$_SCRIPT_NAME$_CLEAR ${_C_GREY}[${_C_GREEN}OPTION${_C_GREY}]${_CLEAR}\n  $_C_RED$_SCRIPT_NAME$_CLEAR ${_C_GREY}[${_C_GREEN}SCRIPT${_C_GREY}]$_CLEAR ${_C_GREY}[${_C_GREEN}OPTION${_C_GREY}]$_CLEAR ${_C_GREY}[${_C_GREEN}OPTION...${_C_GREY}]${_CLEAR}\n"
+    echo -e "${_C_BLUE}OPTIONS$_CLEAR"
     echo -e "  ${_C_WHITE}-u ${_C_GREY}| ${_C_WHITE}--update$_CLEAR  ${_C_GREY}→$_CLEAR update/setup symlinks, libs and scripts"
     echo -e "  ${_C_WHITE}-v ${_C_GREY}| ${_C_WHITE}--verbose$_CLEAR ${_C_GREY}→$_CLEAR run with the update command for verbose output"
     echo -e "  ${_C_WHITE}-l ${_C_GREY}| ${_C_WHITE}--list$_CLEAR    ${_C_GREY}→$_CLEAR display the list of working scripts"
@@ -497,7 +522,7 @@ function cjdscript_help {
         || [ ! -f "$_CJDSCRIPT_ROOT/.dirver" ] \
         || [ ! $(cat "$_CJDSCRIPT_ROOT/.dirver") = "$_CJDSCRIPT_VERSION" ]
     then
-        echo -e "\n${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR The ${_C_RED}${_SCRIPT_NAME}$_CLEAR root is out of date! ${_C_GREY}(${_CLEAR}run to update: ${_C_RED}${_SCRIPT_NAME}$_CLEAR ${_C_WHITE}-u ${_C_GREY}| ${_C_WHITE}--update${_C_GREY})${_CLEAR}"
+        echo -e "\n${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR The $_C_RED$_SCRIPT_NAME$_CLEAR root is out of date! (to update: $_C_RED$_SCRIPT_NAME$_CLEAR ${_C_WHITE}-u ${_C_GREY}| ${_C_WHITE}--update${_CLEAR})"
     fi
 }
 
@@ -551,7 +576,7 @@ done
 # Prompt user to ensure an update is intentional then run setup_scripts
 [[ -n "$_TRIGGER_UPDATE" ]] && {
     [[ -d "$_CJDSCRIPT_ROOT" ]] && {
-        echo -ne "\n${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR Update the root filesystem @ ${_C_WHITE}${_CJDSCRIPT_ROOT}${_CLEAR}? ${_C_GREY}(${_CLEAR}${_C_BLUE}YES$_CLEAR to confirm${_C_GREY})$_CLEAR: "
+        echo -ne "\n${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR Update the root filesystem @ $_C_WHITE$_CJDSCRIPT_ROOT${_CLEAR}? (${_C_BLUE}YES$_CLEAR to confirm): "
         read CHOICE
         [[ ! "$CHOICE" = 'YES' ]] && {
             echo -e "${_C_BLUE}==>$_CLEAR The ${_C_WHITE}cjdscript$_CLEAR root will ${_UNDERLINE}not$_CLEAR be updated"
