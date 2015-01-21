@@ -23,7 +23,8 @@ _cjdscript() {
         || return
 
     # Provide the list of scripts matching the current input
-    COMPREPLY=( $( compgen -W '$( _cjdscript_scriptlist )' -- "$cur" ) )
+    [[ $COMP_CWORD = 1 ]] \
+        && COMPREPLY=( $( compgen -W '$( _cjdscript_scriptlist )' -- "$cur" ) )
 } &&
 complete -F _cjdscript cjdscript
 
