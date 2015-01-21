@@ -2,7 +2,7 @@
 #
 # cjdscript | Deploy and run the collection of working tools included with cjdns
 #
-# Version 8
+# Version 9.0
 #
 # Written by Kevin MacMartin
 # Licensed under the GPLv3
@@ -12,7 +12,7 @@
 _SCRIPT_NAME="${0##*/}"
 
 # VERSION: This is saved @ ~/.cjdscript/.dirver and will display an out-of-date warning when it doesn't match
-_CJDSCRIPT_VERSION="8"
+_CJDSCRIPT_VERSION="9"
 
 # CJDSCRIPT ROOT: Base directory for cjdscript files to be installed
 _CJDSCRIPT_ROOT="$HOME/.cjdscript"
@@ -243,56 +243,37 @@ function setup_python2 {
                     done
                 }
                 echo -ne "${_C_BLUE}==>$_CLEAR Installing ${_C_WHITE}python2$_CLEAR library: ${_C_YELLOW}PySide${_CLEAR}... "
-                [[ -d PySide ]] && rm -rf PySide
-                wget -q -O - $_PYURL_PYSIDE | tar -xz
-                mv PySide* PySide
-                [[ -d PySide ]] && {
-                    cd PySide
-                    eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_ROOT" $_SILENT_OUTPUT
-                    cd "$_CJDSCRIPT_ROOT/download"
-                    rm -rf PySide
-                    if [[ $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_PYSIDE") ]]; then
-                        echo -e "${_C_GREEN}DONE!$_CLEAR"
+                if [ $(type -P cmake) ]; then
+                    [[ $(type -P qmake-qt4) ]] \
+                        && ln -s $(type -P qmake-qt4) "$_CJDSCRIPT_ROOT/bin/qmake"
+                    if [ $(type -P qmake) ]; then
+                        [[ -d PySide ]] && rm -rf PySide
+                        wget -q -O - $_PYURL_PYSIDE | tar -xz
+                        mv PySide* PySide
+                        [[ -d PySide ]] && {
+                            cd PySide
+                            eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_ROOT" $_SILENT_OUTPUT
+                            cd "$_CJDSCRIPT_ROOT/download"
+                            rm -rf PySide
+                            if [[ $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_PYSIDE") ]]; then
+                                echo -e "${_C_GREEN}DONE!$_CLEAR"
+                            else
+                                echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while installing"
+                            fi
+                        } || {
+                            # Display an error stating that PySide didn't install correctly
+                            echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while downloading"
+                        }
                     else
-                        echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while installing"
+                        echo -e "${_C_RED}FAILED:$_CLEAR ${_C_YELLOW}qmake$_CLEAR is required to install"
                     fi
-                } || {
-                    # Display an error stating that PySide didn't install correctly
-                    echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while downloading"
-                }
+                else
+                    echo -e "${_C_RED}FAILED:$_CLEAR ${_C_YELLOW}cmake$_CLEAR is required to install"
+                fi
             fi
         else
             # Display an error stating that setuptools didn't install correctly and list the libraries this affects
             echo -e "${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR networkx and PySide require setuptools and won't be installed"
-        fi
-
-        # MATPLOTLIB: Download, build and install unless the current version is installed
-        if [[ ! $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_MATPLOTLIB") ]]; then
-            _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "${_PYINFO_MATPLOTLIB/-*}"))
-            [[ -n "$_old_files" ]] && {
-                for pyobject in ${_old_files[@]}; do
-                    rm -rf "$pyobject"
-                done
-            }
-            echo -ne "${_C_BLUE}==>$_CLEAR Installing ${_C_WHITE}python2$_CLEAR library: ${_C_YELLOW}matplotlib${_CLEAR}... "
-            [[ -d matplotlib ]] && rm -rf matplotlib
-            wget -q -O - $_PYURL_MATPLOTLIB | tar -xz
-            mv matplotlib* matplotlib
-            [[ -d matplotlib ]] && {
-                cd matplotlib
-                eval "$_PYTHON2_BINPATH" setup.py build $_SILENT_OUTPUT
-                eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_ROOT" $_SILENT_OUTPUT
-                cd "$_CJDSCRIPT_ROOT/download"
-                rm -rf matplotlib
-                if [[ $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_MATPLOTLIB") ]]; then
-                    echo -e "${_C_GREEN}DONE!$_CLEAR"
-                else
-                    echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while installing"
-                fi
-            } || {
-                # Display an error stating that matplotlib didn't install correctly
-                echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while downloading"
-            }
         fi
 
         # NUMPY: Download, build and install unless the current version is installed
@@ -320,6 +301,35 @@ function setup_python2 {
                 fi
             } || {
                 # Display an error stating that numpy didn't install correctly
+                echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while downloading"
+            }
+        fi
+
+        # MATPLOTLIB: Download, build and install unless the current version is installed
+        if [[ ! $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_MATPLOTLIB") ]]; then
+            _old_files=($(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | grep "${_PYINFO_MATPLOTLIB/-*}"))
+            [[ -n "$_old_files" ]] && {
+                for pyobject in ${_old_files[@]}; do
+                    rm -rf "$pyobject"
+                done
+            }
+            echo -ne "${_C_BLUE}==>$_CLEAR Installing ${_C_WHITE}python2$_CLEAR library: ${_C_YELLOW}matplotlib${_CLEAR}... "
+            [[ -d matplotlib ]] && rm -rf matplotlib
+            wget -q -O - $_PYURL_MATPLOTLIB | tar -xz
+            mv matplotlib* matplotlib
+            [[ -d matplotlib ]] && {
+                cd matplotlib
+                eval "$_PYTHON2_BINPATH" setup.py build $_SILENT_OUTPUT
+                eval "$_PYTHON2_BINPATH" setup.py install --prefix="$_CJDSCRIPT_ROOT" $_SILENT_OUTPUT
+                cd "$_CJDSCRIPT_ROOT/download"
+                rm -rf matplotlib
+                if [[ $(ls "$_CJDSCRIPT_ROOT/lib/python2.7/site-packages" | egrep "^$_PYINFO_MATPLOTLIB") ]]; then
+                    echo -e "${_C_GREEN}DONE!$_CLEAR"
+                else
+                    echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while installing"
+                fi
+            } || {
+                # Display an error stating that matplotlib didn't install correctly
                 echo -e "${_C_RED}FAILED:$_CLEAR an error occurred while downloading"
             }
         fi
@@ -529,14 +539,8 @@ function cjdscript_help {
 # Unset config variables then parse any input
 unset _TRIGGER_LIST _TRIGGER_UPDATE
 
-# Create the cjdscript root if it doesn't exist
-[[ ! -d "$_CJDSCRIPT_ROOT" ]] && {
-    setup_scripts
-    exit $?
-}
-
 # Display the list of working scripts if no input is given
-[[ -z "$1" ]] \
+[[ -z "$1" ]] && [[ -d "$_CJDSCRIPT_ROOT" ]] \
     && list_scripts
 
 while [ -n "$1" ]; do
@@ -574,7 +578,7 @@ done
     && list_scripts
 
 # Prompt user to ensure an update is intentional then run setup_scripts
-[[ -n "$_TRIGGER_UPDATE" ]] && {
+if [ -n "$_TRIGGER_UPDATE" ] || [ ! -d "$_CJDSCRIPT_ROOT" ]; then
     [[ -d "$_CJDSCRIPT_ROOT" ]] && {
         echo -ne "\n${_C_BLUE}==>$_CLEAR ${_C_YELLOW}WARNING:$_CLEAR Update the root filesystem @ $_C_WHITE$_CJDSCRIPT_ROOT${_CLEAR}? (${_C_BLUE}YES$_CLEAR to confirm): "
         read CHOICE
@@ -584,7 +588,7 @@ done
         }
     }
     setup_scripts
-}
+fi
 
 # Exit successfully
 exit 0
