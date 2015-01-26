@@ -28,5 +28,5 @@ _cjdscript() {
         COMPREPLY=( $(compgen -f -- $cur) )
     }
 } &&
-complete -F _cjdscript cjdscript cjd
+complete -F _cjdscript cjdscript
 
