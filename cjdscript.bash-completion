@@ -7,9 +7,7 @@
 
 # Obtains the list of working scripts from cjdscript
 _cjdscript_scriptlist() {
-    cjdscript -l \
-        | sed 's|^[^:]*: ||' \
-        | sed ':a;N;$!ba;s|\n| |g'
+    cjdscript -l | sed 's|^[^:]*: ||'
 }
 
 # The bash-completion function for cjdscript
@@ -23,8 +21,12 @@ _cjdscript() {
         || return
 
     # Provide the list of scripts matching the current input
-    [[ $COMP_CWORD = 1 ]] \
-        && COMPREPLY=( $( compgen -W '$( _cjdscript_scriptlist )' -- "$cur" ) )
+    [[ $COMP_CWORD = 1 ]] && {
+        COMPREPLY=( $( compgen -W '$( _cjdscript_scriptlist )' -- "$cur" ) )
+    } || {
+        compopt -o filenames
+        COMPREPLY=( $(compgen -f -- $cur) )
+    }
 } &&
-complete -F _cjdscript cjdscript
+complete -F _cjdscript cjdscript cjd
 
