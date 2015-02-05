@@ -15,6 +15,7 @@ A script to deploy and run the collection of working tools included with [cjdns]
 
 * `GCC`: Required to compile binaries
 * `Python 2`: Required to setup/run **Python 2** scripts and compile binaries
+* `Ncurses`: Required to pretty-print the list of active scripts
 * `Node.js`: Required to setup/run **Node.js** scripts and compile binaries
 * `Wget`: Required to download **Python 2** libraries
 * `CMake`: Required to build the **Python 2** library **PySide**

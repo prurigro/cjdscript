@@ -2,7 +2,7 @@
 #
 # cjdscript | Deploy and run the collection of working tools included with cjdns
 #
-# Version 9.2
+# Version 9.3
 #
 # Written by Kevin MacMartin
 # Licensed under the GPLv3
@@ -444,7 +444,7 @@ function display_scriptlist() {
     [[ ${#script_list[*]} = 0 ]] \
         && return 1
 
-    [[ -t 1 ]] && {
+    [[ -t 1 ]] && [[ $(type -P tput) ]] && {
         # Find the column width (the length of the longest script name + 1 for spacing)
         colwidth=0
         allscripts=( ${bash_scripts[@]} ${binaries[@]} ${nodejs_scripts[@]} ${python2_scripts[@]} )
