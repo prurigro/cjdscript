@@ -2,7 +2,7 @@
 #
 # cjdscript | Deploy and run the collection of working tools included with cjdns
 #
-# Version 9.3
+# Version 10
 #
 # Written by Kevin MacMartin
 # Licensed under the GPLv3
@@ -12,7 +12,7 @@
 script_name="${0##*/}"
 
 # VERSION: This is saved @ ~/.cjdscript/.dirver and will display an out-of-date warning when it doesn't match
-cjdscript_version='9'
+cjdscript_version='10'
 
 # CJDSCRIPT ROOT: Base directory for cjdscript files to be installed
 cjdscript_rootdir="$HOME/.cjdscript"
@@ -26,7 +26,7 @@ cjdscript_rootdir="$HOME/.cjdscript"
 # INCLUDED SCRIPTS: The scripts supported by cjdscripts, separated by language
 bash_scripts=('cjdroid-build.sh' 'ip6tables.sh')
 binaries=('cjdroute' 'makekeys' 'privatetopublic' 'publictoip6' 'sybilsim')
-nodejs_scripts=('admin-panel' 'cjdnslog.js' 'dumptable.js' 'getLinks.js' 'makesim' 'netwalker.js' 'pathfinderTree.js' 'peerStats.js' 'ping' 'pingAll.js' 'pingflood.js' 'splice.js' 'traceroute')
+nodejs_scripts=('admin-panel' 'cjdnslog.js' 'dumptable.js' 'makesim' 'pathfinderTree.js' 'peerStats.js' 'ping' 'pingAll.js' 'traceroute')
 python2_scripts=('cjdnsadminmaker.py' 'cjdnslog' 'drawgraph' 'dumpgraph' 'dumptable' 'dynamicEndpoints.py' 'findnodes' 'graphStats' 'peerStats' 'pingAll.py' 'pktoip6' 'searches' 'sessionStats' 'trashroutes')
 
 # Silences detailed output so only important messages are seen (unset by the verbose flag)
@@ -34,30 +34,35 @@ silent_output=">/dev/null 2>&1"
 
 # Colours
 [[ -t 1 ]] && {
-    c_grey='\e[1;30m'    # DARK GREY
-    c_red='\e[1;31m'     # RED
-    c_green='\e[1;32m'   # GREEN
-    c_yellow='\e[1;33m'  # YELLOW
-    c_blue='\e[1;34m'    # BLUE
-    c_magenta='\e[1;35m' # MAGENTA
-    c_teal='\e[1;36m'    # TEAL
-    c_white='\e[1;37m'   # WHITE
-    c_underline='\e[4m'  # UNDERLINE
-    c_clear='\e[0m'      # DISABLES COLOUR
+    c_d=$'\e[1;30m' # DARK GREY
+    c_r=$'\e[1;31m' # RED
+    c_g=$'\e[1;32m' # GREEN
+    c_y=$'\e[1;33m' # YELLOW
+    c_b=$'\e[1;34m' # BLUE
+    c_m=$'\e[1;35m' # MAGENTA
+    c_t=$'\e[1;36m' # TEAL
+    c_w=$'\e[1;37m' # WHITE
+    c_u=$'\e[4m'    # UNDERLINE
+    c_c=$'\e[0m'    # DISABLES COLOUR
 }
 
 # Export path variables with cjdscript locations included
 export PATH="$cjdscript_rootdir/bin:$PATH"
 export PYTHONPATH="$cjdscript_rootdir/lib/python2.7/site-packages/"
 
+function quit() {
+    printf '\n%s\n' "${c_w}Quitting...$c_c"
+    exit 1
+}
+
 # BASH SETUP: Triggered by setup_scripts to configure supported bash scripts
 function setup_bash {
     # Determine the location of the bash executable
-    bash_binpath=$(type -P bash)
+    bash_binpath="$(type -P bash)"
 
     # Run the bash configuration provided its executable was detected
-    [[ -f "$bash_binpath" ]] && {
-        echo -e "$c_blue==>$c_clear Linking ${c_white}bash$c_clear scripts"
+    if [[ -n "$bash_binpath" ]]; then
+        printf '%s\n' "$c_b==>$c_c Linking ${c_w}bash$c_c scripts"
 
         # Setup bash links
         ln -sf "$bash_binpath" "$cjdscript_rootdir/bin/bash"
@@ -65,107 +70,109 @@ function setup_bash {
         ln -sf "$bash_binpath" "$cjdscript_rootdir/bin/sh -e"
 
         # Setup bash scripts
-        for bash_scriptname in ${bash_scripts[@]}; do
+        for bash_scriptname in "${bash_scripts[@]}"; do
             if [ -f "$cjdscript_rootdir/download/cjdns/contrib/bash/$bash_scriptname" ]; then
-                ln -sf "$cjdscript_rootdir/download/cjdns/contrib/bash/$bash_scriptname" .
+                ln -sf "$cjdscript_rootdir/download/cjdns/contrib/bash/$bash_scriptname" "$cjdscript_rootdir/bin/$bash_scriptname"
             elif [ -f "$cjdscript_rootdir/download/cjdns/contrib/android/$bash_scriptname" ]; then
-                ln -sf "$cjdscript_rootdir/download/cjdns/contrib/android/$bash_scriptname" .
+                ln -sf "$cjdscript_rootdir/download/cjdns/contrib/android/$bash_scriptname" "$cjdscript_rootdir/bin/$bash_scriptname"
             else
-                echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear $bash_scriptname does not exist and won't be installed"
+                printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c $bash_scriptname does not exist and won't be installed"
             fi
         done
-    } || {
+    else
         # Display an error stating that bash scripts won't be available
-        echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear Not including bash scripts (bash is not available)"
-    }
+        printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c Not including bash scripts (bash is not available)"
+    fi
 }
 
 # NODE SETUP: Triggered by setup_scripts to configure supported node scripts
 function setup_node {
     # Detect the presence of node and determine the location of its executable
-    nodejs_binpath=$(type -P node)
-    [[ -z "$nodejs_binpath" ]] \
-        && nodejs_binpath=$(type -P nodejs)
+    nodejs_binpath="$(type -P node)"
+    nodejs_binpath=${nodejs_binpath:="$(type -P nodejs)"}
 
     # Run the node configuration provided its executable was detected
-    [[ -f "$nodejs_binpath" ]] && {
-        echo -e "$c_blue==>$c_clear Linking ${c_white}node$c_clear scripts"
+    if [[ -n "$nodejs_binpath" ]]; then
+        printf '%s\n' "$c_b==>$c_c Linking ${c_w}node$c_c scripts"
 
         # Setup nodejs links
         ln -sf "$nodejs_binpath" "$cjdscript_rootdir/bin/node"
         ln -sf "$nodejs_binpath" "$cjdscript_rootdir/bin/nodejs"
 
         # Install nodejs libraries
-        ln -sf "$cjdscript_rootdir/download/cjdns/contrib/nodejs/tools/lib" .
-        ln -sf "$cjdscript_rootdir/download/cjdns/contrib/nodejs/cjdnsadmin" ..
+        ln -sf "$cjdscript_rootdir/download/cjdns/tools/lib" "$cjdscript_rootdir/bin/lib"
+        ln -sf "$cjdscript_rootdir/download/cjdns/contrib/nodejs/cjdnsadmin" "$cjdscript_rootdir/cjdnsadmin"
 
         # Setup admin-panel launcher script
-        [[ $(type -P npm) ]] && [[ -d "$cjdscript_rootdir/download/cjdns/contrib/nodejs/admin" ]] && {
+        if type -P npm >/dev/null 2>&1 && [[ -d "$cjdscript_rootdir/download/cjdns/contrib/nodejs/admin" ]]; then
             pushd "$cjdscript_rootdir/download/cjdns/contrib/nodejs/admin" >/dev/null
             npm install >/dev/null 2>&1
             popd >/dev/null
-            echo -e '#!/usr/bin/env bash\n\ncd "${0%/*}"/../download/cjdns/contrib/nodejs/admin\nnode admin.js $@' \
+            printf '%s\n\n%s\n%s\n' '#!/usr/bin/env bash' 'cd "${0%/*}"/../download/cjdns/contrib/nodejs/admin' 'node admin.js $@' \
                 > "$cjdscript_rootdir/bin/admin-panel"
             chmod 755 "$cjdscript_rootdir/bin/admin-panel"
-        } || {
+        else
             # Display an error stating that admin-panel won't be available
-            echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear Not including admins"
-        }
+            printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c Not including admins"
+        fi
 
         # Create a launcher script for makesim and make it executable
-        [[ -f "$cjdscript_rootdir/download/cjdns/contrib/nodejs/makesim.js" ]] && {
-            echo -e '#!/usr/bin/env bash\n\ncd "${0%/*}"/../download/cjdns/contrib/nodejs\nnode makesim.js $@' \
+        if [[ -f "$cjdscript_rootdir/download/cjdns/contrib/nodejs/makesim.js" ]]; then
+            printf '%s\n\n%s\n%s\n' '#!/usr/bin/env bash' 'cd "${0%/*}"/../download/cjdns/contrib/nodejs' 'node makesim.js $@' \
                 > "$cjdscript_rootdir/bin/makesim"
             chmod 755 "$cjdscript_rootdir/bin/makesim"
-        } || {
+        else
             # Display an error stating that makesim scripts won't be available
-            echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear Not including makesim"
-        }
+            printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c Not including makesim"
+        fi
 
         # Setup nodejs scripts
-        for nodejs_scriptname in ${nodejs_scripts[@]}; do
-            if [[ -f "$cjdscript_rootdir/download/cjdns/contrib/nodejs/tools/$nodejs_scriptname" ]]; then
-                chmod 755 "$cjdscript_rootdir/download/cjdns/contrib/nodejs/tools/$nodejs_scriptname"
-                ln -sf "$cjdscript_rootdir/download/cjdns/contrib/nodejs/tools/$nodejs_scriptname" .
+        for nodejs_scriptname in "${nodejs_scripts[@]}"; do
+            if [[ -f "$cjdscript_rootdir/download/cjdns/tools/${nodejs_scriptname/\.js}" ]]; then
+                chmod 755 "$cjdscript_rootdir/download/cjdns/tools/${nodejs_scriptname/\.js}"
+                ln -sf "$cjdscript_rootdir/download/cjdns/tools/${nodejs_scriptname/\.js}" "$cjdscript_rootdir/bin/$nodejs_scriptname"
             else
                 # Announce missing scripts (but skip ones that have been added manually)
                 [[ ! -e "$cjdscript_rootdir/bin/$nodejs_scriptname" ]] \
-                    && echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear $nodejs_scriptname does not exist and won't be installed"
+                    && printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c $nodejs_scriptname does not exist and won't be installed"
             fi
         done
-    } || {
+    else
         # Display an error stating that node scripts won't be available
-        echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear Not including node scripts (node/nodejs is not available)"
-    }
+        printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c Not including node scripts (node/nodejs is not available)"
+    fi
 }
 
 # PYTHON2 SETUP: Triggered by setup_scripts to configure supported python2 scripts
 function setup_python2 {
     # DOWNLOAD URLs: The locations to grab different external libraries
-    pyurl_setuptools='https://pypi.python.org/packages/source/s/setuptools/setuptools-11.3.1.tar.gz'
+    pyurl_setuptools='https://pypi.python.org/packages/source/s/setuptools/setuptools-12.2.tar.gz'
     pyurl_networkx='https://pypi.python.org/packages/source/n/networkx/networkx-1.9.1.tar.gz'
     pyurl_pyside='https://pypi.python.org/packages/source/P/PySide/PySide-1.2.2.tar.gz'
-    pyurl_matplotlib='https://downloads.sourceforge.net/project/matplotlib/matplotlib/matplotlib-1.4.2/matplotlib-1.4.2.tar.gz'
     pyurl_numpy='http://downloads.sourceforge.net/project/numpy/NumPy/1.9.1/numpy-1.9.1.tar.gz'
+    pyurl_matplotlib='https://downloads.sourceforge.net/project/matplotlib/matplotlib/matplotlib-1.4.3/matplotlib-1.4.3.tar.gz'
 
     # Name and version for each _PYURL
-    pyinfo_setuptools="$(sed 's|^.*/||;s|\.[a-z].*$||' <<< "$pyurl_setuptools")"
-    pyinfo_networkx="$(sed 's|^.*/||;s|\.[a-z].*$||' <<< "$pyurl_networkx")"
-    pyinfo_pyside="$(sed 's|^.*/||;s|\.[a-z].*$||' <<< "$pyurl_pyside")"
-    pyinfo_matplotlib="$(sed 's|^.*/||;s|\.[a-z].*$||' <<< "$pyurl_matplotlib")"
-    pyinfo_numpy="$(sed 's|^.*/||;s|\.[a-z].*$||' <<< "$pyurl_numpy")"
+    pyinfo_setuptools="${pyurl_setuptools/*\/}"
+    pyinfo_setuptools="${pyinfo_setuptools/\.[a-z][a-z]*}"
+    pyinfo_networkx="${pyurl_networkx/*\/}"
+    pyinfo_networkx="${pyinfo_networkx/\.[a-z][a-z]*}"
+    pyinfo_pyside="${pyurl_pyside/*\/}"
+    pyinfo_pyside="${pyinfo_pyside/\.[a-z][a-z]*}"
+    pyinfo_numpy="${pyurl_numpy/*\/}"
+    pyinfo_numpy="${pyinfo_numpy/\.[a-z][a-z]*}"
+    pyinfo_matplotlib="${pyurl_matplotlib/*\/}"
+    pyinfo_matplotlib="${pyinfo_matplotlib/\.[a-z][a-z]*}"
 
     # Detect the presence of python2 and determine the location of its executable
-    python2_binpath=$(type -P python2)
-    [[ -z "$python2_binpath" ]] \
-        && python2_binpath=$(type -P python2.7)
-    [[ -z "$python2_binpath" ]] \
-        && [[ $(type -P python) ]] \
-        && [[ ! $(python --version | sed 's|^[^ ]* ||') =~ 3\.[0-9\.]* ]] \
-        && python2_binpath=$(type -P python)
+    python2_binpath="$(type -P python2)"
+    python2_binpath=${python2_binpath:="$(type -P python2.7)"}
+    python2_binpath=${python2_binpath:="$(type -P python)"}
+    [[ $($python2_binpath --version 2>&1) =~ Python\ 3 ]] \
+        && unset python2_binpath
 
     # Run the python2 configuration provided its executable was detected
-    [[ -f "$python2_binpath" ]] && {
+    if [[ -n "$python2_binpath" ]]; then
         # Setup Python2 links and lib directory
         ln -sf "$python2_binpath" "$cjdscript_rootdir/bin/python"
         ln -sf "$python2_binpath" "$cjdscript_rootdir/bin/python2"
@@ -180,229 +187,231 @@ function setup_python2 {
         cd "$cjdscript_rootdir/download"
 
         # SETUPTOOLS: Download, build and install unless the current version is installed
-        if [[ ! $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_setuptools") ]]; then
-            _old_files=( $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | grep "${pyinfo_setuptools/-*}") )
-            [[ -n "$_old_files" ]] && {
-                for pyobject in ${_old_files[@]}; do
+        if [[ ! $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_setuptools*") ]]; then
+            old_files=( $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "${pyinfo_setuptools/-*}*") )
+            [[ -n "${old_files[*]}" ]] && {
+                for pyobject in "${old_files[@]}"; do
                     rm -rf "$pyobject"
                 done
             }
 
-            echo -ne "$c_blue==>$c_clear Installing ${c_white}python2$c_clear library: ${c_yellow}setuptools${c_clear}... "
+            printf '%s' "$c_b==>$c_c Installing ${c_w}python2$c_c library: ${c_y}setuptools${c_c}... "
             [[ -d setuptools ]] && rm -rf setuptools
             wget -q -O - $pyurl_setuptools | tar -xz
             mv setuptools* setuptools
-            [[ -d setuptools ]] && {
+            if [[ -d setuptools ]]; then
                 cd setuptools
                 eval "$python2_binpath" setup.py install --prefix="$cjdscript_rootdir" $silent_output
                 cd "$cjdscript_rootdir/download"
                 rm -rf setuptools
-                if [[ $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_setuptools") ]]; then
-                    echo -e "${c_green}DONE!$c_clear"
+                if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_setuptools*") ]]; then
+                    printf '%s\n' "${c_g}DONE!$c_c"
                 else
-                    echo -e "${c_red}FAILED:$c_clear an error occurred while installing" >&2
+                    printf '%s\n' "${c_r}FAILED:$c_c an error occurred while installing" >&2
                 fi
-            } || {
+            else
                 # Display an error stating that networkx didn't install correctly
-                echo -e "${c_red}FAILED:$c_clear an error occurred while downloading" >&2
-            }
+                printf '%s\n' "${c_r}FAILED:$c_c an error occurred while downloading" >&2
+            fi
         fi
 
-        if [[ $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_setuptools") ]]; then
+        if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_setuptools*") ]]; then
             # NETWORKX: Download, build and install unless the current version is installed
-            if [ ! $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_networkx") ]; then
-                _old_files=( $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | grep "${pyinfo_networkx/-*}") )
-                [[ -n "$_old_files" ]] && {
-                    for pyobject in ${_old_files[@]}; do
+            if [[ ! $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_networkx*") ]]; then
+                old_files=( $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "${pyinfo_networkx/-*}*") )
+                [[ -n "${old_files[*]}" ]] && {
+                    for pyobject in "${old_files[@]}"; do
                         rm -rf "$pyobject"
                     done
                 }
-                echo -ne "$c_blue==>$c_clear Installing ${c_white}python2$c_clear library: ${c_yellow}networkx${c_clear}... "
+                printf '%s' "$c_b==>$c_c Installing ${c_w}python2$c_c library: ${c_y}networkx${c_c}... "
                 [[ -d networkx ]] && rm -rf networkx
                 wget -q -O - $pyurl_networkx | tar -xz
                 mv networkx* networkx
-                [[ -d networkx ]] && {
+                if [[ -d networkx ]]; then
                     cd networkx
                     eval "$python2_binpath" setup.py install --prefix="$cjdscript_rootdir" $silent_output
                     cd "$cjdscript_rootdir/download"
                     rm -rf networkx
-                    if [[ $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_networkx") ]]; then
-                        echo -e "${c_green}DONE!$c_clear"
+                    if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_networkx*") ]]; then
+                        printf '%s\n' "${c_g}DONE!$c_c"
                     else
-                        echo -e "${c_red}FAILED:$c_clear an error occurred while installing" >&2
+                        printf '%s\n' "${c_r}FAILED:$c_c an error occurred while installing" >&2
                     fi
-                } || {
+                else
                     # Display an error stating that networkx didn't install correctly
-                    echo -e "${c_red}FAILED:$c_clear an error occurred while downloading" >&2
-                }
+                    printf '%s\n' "${c_r}FAILED:$c_c an error occurred while downloading" >&2
+                fi
             fi
 
             # PYSIDE: Download, build and install unless the current version is installed
-            if [[ ! $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_pyside") ]]; then
-                _old_files=( $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | grep "${pyinfo_pyside/-*}") )
-                [[ -n "$_old_files" ]] && {
-                    for pyobject in ${_old_files[@]}; do
+            if [[ ! $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_pyside*") ]]; then
+                old_files=( $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "${pyinfo_pyside/-*}*") )
+                [[ -n "${old_files[*]}" ]] && {
+                    for pyobject in "${old_files[@]}"; do
                         rm -rf "$pyobject"
                     done
                 }
-                echo -ne "$c_blue==>$c_clear Installing ${c_white}python2$c_clear library: ${c_yellow}PySide${c_clear}... "
+                printf '%s' "$c_b==>$c_c Installing ${c_w}python2$c_c library: ${c_y}PySide${c_c}... "
                 if [[ $(type -P cmake) ]]; then
                     [[ $(type -P qmake-qt4) ]] \
-                        && ln -sf $(type -P qmake-qt4) "$cjdscript_rootdir/bin/qmake"
+                        && ln -sf "$(type -P qmake-qt4)" "$cjdscript_rootdir/bin/qmake"
                     if [[ $(type -P qmake) ]]; then
                         [[ -d PySide ]] && rm -rf PySide
                         wget -q -O - $pyurl_pyside | tar -xz
                         mv PySide* PySide
-                        [[ -d PySide ]] && {
+                        if [[ -d PySide ]]; then
                             cd PySide
                             eval "$python2_binpath" setup.py install --prefix="$cjdscript_rootdir" $silent_output
                             cd "$cjdscript_rootdir/download"
                             rm -rf PySide
-                            if [[ $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_pyside") ]]; then
-                                echo -e "${c_green}DONE!$c_clear"
+                            if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_pyside*") ]]; then
+                                printf '%s\n' "${c_g}DONE!$c_c"
                             else
-                                echo -e "${c_red}FAILED:$c_clear an error occurred while installing" >&2
+                                printf '%s\n' "${c_r}FAILED:$c_c an error occurred while installing" >&2
                             fi
-                        } || {
+                        else
                             # Display an error stating that PySide didn't install correctly
-                            echo -e "${c_red}FAILED:$c_clear an error occurred while downloading" >&2
-                        }
+                            printf '%s\n' "${c_r}FAILED:$c_c an error occurred while downloading" >&2
+                        fi
                     else
-                        echo -e "${c_red}FAILED:$c_clear ${c_yellow}qmake$c_clear is required to install" >&2
+                        printf '%s\n' "${c_r}FAILED:$c_c ${c_y}qmake$c_c is required to install" >&2
                     fi
                 else
-                    echo -e "${c_red}FAILED:$c_clear ${c_yellow}cmake$c_clear is required to install" >&2
+                    printf '%s\n' "${c_r}FAILED:$c_c ${c_y}cmake$c_c is required to install" >&2
                 fi
             fi
         else
             # Display an error stating that setuptools didn't install correctly and list the libraries this affects
-            echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear networkx and PySide require setuptools and won't be installed"
+            printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c networkx and PySide require setuptools and won't be installed"
         fi
 
         # NUMPY: Download, build and install unless the current version is installed
-        if [[ ! $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_numpy") ]]; then
-            _old_files=( $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | grep "${pyinfo_numpy/-*}") )
-            [[ -n "$_old_files" ]] && {
-                for pyobject in ${_old_files[@]}; do
+        if [[ ! $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_numpy*") ]]; then
+            old_files=( $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "${pyinfo_numpy/-*}*") )
+            [[ -n "${old_files[*]}" ]] && {
+                for pyobject in "${old_files[@]}"; do
                     rm -rf "$pyobject"
                 done
             }
-            echo -ne "$c_blue==>$c_clear Installing ${c_white}python2$c_clear library: ${c_yellow}numpy${c_clear}... "
+            printf '%s' "$c_b==>$c_c Installing ${c_w}python2$c_c library: ${c_y}numpy${c_c}... "
             [[ -d numpy ]] && rm -rf numpy
             wget -q -O - $pyurl_numpy | tar -xz
             mv numpy* numpy
-            [[ -d numpy ]] && {
+            if [[ -d numpy ]]; then
                 cd numpy
                 eval "$python2_binpath" setup.py build $silent_output
                 eval "$python2_binpath" setup.py install --prefix="$cjdscript_rootdir" $silent_output
                 cd "$cjdscript_rootdir/download"
                 rm -rf numpy
-                if [[ $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_numpy") ]]; then
-                    echo -e "${c_green}DONE!$c_clear"
+                if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_numpy*") ]]; then
+                    printf '%s\n' "${c_g}DONE!$c_c"
                 else
-                    echo -e "${c_red}FAILED:$c_clear an error occurred while installing" >&2
+                    printf '%s\n' "${c_r}FAILED:$c_c an error occurred while installing" >&2
                 fi
-            } || {
+            else
                 # Display an error stating that numpy didn't install correctly
-                echo -e "${c_red}FAILED:$c_clear an error occurred while downloading" >&2
-            }
+                printf '%s\n' "${c_r}FAILED:$c_c an error occurred while downloading" >&2
+            fi
         fi
 
         # MATPLOTLIB: Download, build and install unless the current version is installed
-        if [[ ! $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_matplotlib") ]]; then
-            _old_files=( $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | grep "${pyinfo_matplotlib/-*}") )
-            [[ -n "$_old_files" ]] && {
-                for pyobject in ${_old_files[@]}; do
+        if [[ ! $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_matplotlib*") ]]; then
+            old_files=( $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "${pyinfo_matplotlib/-*}*") )
+            [[ -n "${old_files[*]}" ]] && {
+                for pyobject in "${old_files[@]}"; do
                     rm -rf "$pyobject"
                 done
             }
-            echo -ne "$c_blue==>$c_clear Installing ${c_white}python2$c_clear library: ${c_yellow}matplotlib${c_clear}... "
+            printf '%s' "$c_b==>$c_c Installing ${c_w}python2$c_c library: ${c_y}matplotlib${c_c}... "
             [[ -d matplotlib ]] && rm -rf matplotlib
             wget -q -O - $pyurl_matplotlib | tar -xz
             mv matplotlib* matplotlib
-            [[ -d matplotlib ]] && {
+            if [[ -d matplotlib ]]; then
                 cd matplotlib
                 eval "$python2_binpath" setup.py build $silent_output
                 eval "$python2_binpath" setup.py install --prefix="$cjdscript_rootdir" $silent_output
                 cd "$cjdscript_rootdir/download"
                 rm -rf matplotlib
-                if [[ $(ls "$cjdscript_rootdir/lib/python2.7/site-packages" | egrep "^$pyinfo_matplotlib") ]]; then
-                    echo -e "${c_green}DONE!$c_clear"
+                if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_matplotlib*") ]]; then
+                    printf '%s\n' "${c_g}DONE!$c_c"
                 else
-                    echo -e "${c_red}FAILED:$c_clear an error occurred while installing" >&2
+                    printf '%s\n' "${c_r}FAILED:$c_c an error occurred while installing" >&2
                 fi
-            } || {
+            else
                 # Display an error stating that matplotlib didn't install correctly
-                echo -e "${c_red}FAILED:$c_clear an error occurred while downloading" >&2
-            }
+                printf '%s\n' "${c_r}FAILED:$c_c an error occurred while downloading" >&2
+            fi
         fi
 
         # INSTALL PYTHON2 SCRIPTS
-        echo -e "$c_blue==>$c_clear Linking ${c_white}python2$c_clear scripts"
+        printf '%s\n' "$c_b==>$c_c Linking ${c_w}python2$c_c scripts"
         cd "$cjdscript_rootdir/bin"
-        for python2_scriptname in ${python2_scripts[@]}; do
+        for python2_scriptname in "${python2_scripts[@]}"; do
             if [ -f "$cjdscript_rootdir/download/cjdns/contrib/python/$python2_scriptname" ]; then
-                ln -sf "$cjdscript_rootdir/download/cjdns/contrib/python/$python2_scriptname" .
+                ln -sf "$cjdscript_rootdir/download/cjdns/contrib/python/$python2_scriptname" "$cjdscript_rootdir/bin/$python2_scriptname"
             else
-                echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear $python2_scriptname does not exist and won't be installed"
+                printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c $python2_scriptname does not exist and won't be installed"
             fi
         done
-    } || {
+    else
         # Display an error stating that python2 scripts won't be available
-        echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear Not including python2 scripts (python2 is not available)"
-    }
+        printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c Not including python2 scripts (python2 is not available)"
+    fi
 }
 
 # BINARY SETUP: Triggered by setup_scripts to configure supported binaries
 function setup_binaries {
     # Build CJDNS if node and python2 are available
-    [[ -e "$cjdscript_rootdir/bin/python" ]] && [[ -e "$cjdscript_rootdir/bin/node" ]] && {
-        echo -ne "$c_blue==>$c_clear Building ${c_white}binaries${c_clear}... "
+    if [[ -e "$cjdscript_rootdir/bin/python" ]] && [[ -e "$cjdscript_rootdir/bin/node" ]]; then
+        printf '%s' "$c_b==>$c_c Building ${c_w}binaries${c_c}... "
         pushd "$cjdscript_rootdir/download/cjdns" >/dev/null
         eval bash "do" $silent_output
-        echo -e "${c_green}DONE!$c_clear"
+        printf '%s\n' "${c_g}DONE!$c_c"
         cd "$cjdscript_rootdir/bin"
 
-        echo -e "$c_blue==>$c_clear Linking ${c_white}binaries$c_clear"
-        for _CJDNS_BINARYNAME in ${binaries[@]}; do
-            [[ -f "$cjdscript_rootdir/download/cjdns/$_CJDNS_BINARYNAME" ]] \
-                && ln -sf "$cjdscript_rootdir/download/cjdns/$_CJDNS_BINARYNAME" . \
-                || echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear $_CJDNS_BINARYNAME does not exist and won't be installed"
+        printf '%s\n' "$c_b==>$c_c Linking ${c_w}binaries$c_c"
+        for cjdns_binaryname in "${binaries[@]}"; do
+            if [[ -f "$cjdscript_rootdir/download/cjdns/$cjdns_binaryname" ]]; then
+                ln -sf "$cjdscript_rootdir/download/cjdns/$cjdns_binaryname" "$cjdscript_rootdir/bin/$cjdns_binaryname"
+            else
+                printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c $cjdns_binaryname does not exist and won't be installed"
+            fi
         done
         popd >/dev/null
-    } || {
+    else
         # Display an error stating that compiled binaries won't be available
-        echo -e "$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear Not building binaries (python2 and node are required)"
-    }
+        printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c Not building binaries (python2 and node are required)"
+    fi
 }
 
 # MAIN SETUP: Configures cjdscript_rootdir then runs each of the setup functions
 function setup_scripts {
     # Create the download folder if it doesn't already exist
-    echo -e "\n$c_blue==>$c_clear Running setup and configuration for ${c_white}cjdscript$c_clear"
+    printf '%s\n' "$c_b==>$c_c Running setup and configuration for ${c_w}cjdscript$c_c"
     [[ ! -d "$cjdscript_rootdir/download" ]] \
         && install -d "$cjdscript_rootdir/download"
 
     # Clone the CJDNS repo if it doesn't exist or update it if it does
-    [[ ! -d "$cjdscript_rootdir/download/cjdns" ]] && {
+    if [[ ! -d "$cjdscript_rootdir/download/cjdns" ]]; then
         pushd "$cjdscript_rootdir/download" >/dev/null
-        echo -en "$c_blue==>$c_clear Cloning the $c_red$cjdns_gitbranch$c_clear branch of $c_yellow$cjdns_gitrepo${c_clear}... "
+        printf '%s' "$c_b==>$c_c Cloning the $c_w$cjdns_gitbranch$c_c branch of $c_y$cjdns_gitrepo${c_c}... "
         eval git clone "$cjdns_gitrepo" -b "$cjdns_gitbranch" $silent_output
-        echo -e "${c_green}DONE!$c_clear"
+        printf '%s\n' "${c_g}DONE!$c_c"
         popd >/dev/null
-    } || {
+    else
         pushd "$cjdscript_rootdir/download/cjdns" >/dev/null
-        echo -en "$c_blue==>$c_clear Cleaning and updating the cjdns repo @ $c_yellow${cjdscript_rootdir}/download/cjdns${c_clear}... "
+        printf '%s' "$c_b==>$c_c Cleaning and updating the cjdns repo @ $c_y${cjdscript_rootdir}/download/cjdns${c_c}... "
         eval git reset --hard $silent_output
         eval git clean -dxf $silent_output
         eval git pull origin $silent_output
-        echo -e "${c_green}DONE!$c_clear"
+        printf '%s\n' "${c_g}DONE!$c_c"
 
-        echo -en "$c_blue==>$c_clear Checking out the $c_red$cjdns_gitbranch$c_clear branch... "
+        printf '%s' "$c_b==>$c_c Checking out the $c_r$cjdns_gitbranch$c_c branch... "
         eval git checkout "$cjdns_gitbranch" $silent_output
-        echo -e "${c_green}DONE!$c_clear"
+        printf '%s\n' "${c_g}DONE!$c_c"
         popd >/dev/null
-    }
+    fi
 
     # Create the lib folder if it doesn't already exist
     [[ ! -d "$cjdscript_rootdir/lib" ]] \
@@ -422,10 +431,10 @@ function setup_scripts {
     popd >/dev/null
 
     # Update directory version
-    echo -e "$cjdscript_version" > "$cjdscript_rootdir/.dirver"
+    printf '%s\n' "$cjdscript_version" > "$cjdscript_rootdir/.dirver"
 
     # Output information, run help and exit
-    echo -e "$c_blue==>$c_clear Finished configuring ${c_white}cjdscript$c_clear root @ $c_yellow$cjdscript_rootdir$c_clear"
+    printf '%s\n' "$c_b==>$c_c Finished configuring ${c_w}cjdscript$c_c root @ $c_y$cjdscript_rootdir$c_c"
     cjdscript_help 0
 }
 
@@ -436,60 +445,46 @@ function display_scriptlist() {
     shift
 
     # Build an array of only the available scripts
-    script_list=()
-    for script in ${@}; do
+    local -a script_list
+    for script in "$@"; do
         [[ -f "$cjdscript_rootdir/bin/$script" ]] \
             && script_list=( ${script_list[@]} "$script" )
     done
     [[ ${#script_list[*]} = 0 ]] \
         && return 1
 
-    [[ -t 1 ]] && [[ $(type -P tput) ]] && {
-        # Find the column width (the length of the longest script name + 1 for spacing)
-        colwidth=0
-        allscripts=( ${bash_scripts[@]} ${binaries[@]} ${nodejs_scripts[@]} ${python2_scripts[@]} )
-        for script in ${allscripts[@]}; do
-            if [ $(wc -c <<< "$script") -gt $colwidth ]; then
-                colwidth=$(wc -c <<< "$script")
-            fi
-        done
-        colwidth=$(( $colwidth + 3 ))
-
-        # Find the number of scripts that can be squeezed on a single line
-        scripts_per_line=1
-        while [ $(( $(( $scripts_per_line + 1 )) * $colwidth)) -lt $(( $(tput cols) - 2 )) ]; do
-            scripts_per_line=$(( $scripts_per_line + 1 ))
-        done
-        while [ $(( $scripts_per_line * $(( $colwidth + 1 )) )) -lt $(( $(tput cols) - 2 )) ]; do
-            colwidth=$(( $colwidth + 1 ))
-        done
-        colwidth=$(( $colwidth - 2 ))
-
-        left_gap=$(( $(( $(( $colwidth - $(wc -c <<< "$list_title") )) / 2 )) + 1 ))
-        right_gap=$(( $(( $colwidth - $(wc -c <<< "$list_title") )) - $left_gap ))
-        printf "%${left_gap}s$c_blue%s$c_clear%${right_gap}s\n" "" "$list_title" ""
+    # The tput command is available and cjdscript is not in a pipe if colwidth > 0
+    if (( colwidth > 0 )); then
+        local titlewidth=$(( $(wc -c <<< "$list_title") + 6 ))
+        local left_gap=$(( (( (( colwidth - titlewidth )) / 2 )) + 1 ))
+        local right_gap=$(( (( colwidth - titlewidth )) - left_gap ))
+        printf "%${left_gap}s%s%${right_gap}s\n" "" "$c_b$list_title$c_c" ""
+        unset titlewidth left_gap right_gap
 
         counter=0
-        echo -n " "
-        for script in ${script_list[@]}; do
-            left_gap=$(( $(( $colwidth - $(wc -c <<< "$script") )) / 2 ))
-            right_gap=$(( $(( $colwidth - $(wc -c <<< "$script") )) - $left_gap ))
-            [[ $counter -ge $scripts_per_line ]] && {
+        printf ' '
+        for script in "${script_list[@]}"; do
+            local scriptwidth=$(( $(wc -c <<< "$script") + 6 ))
+            local left_gap=$(( (( colwidth - scriptwidth )) / 2 ))
+            local right_gap=$(( (( colwidth - scriptwidth )) - left_gap ))
+            (( counter > 0 )) && (( counter < scripts_per_line )) \
+                && printf '%s' " $c_d|$c_c "
+            (( counter >= scripts_per_line )) && {
                 counter=0
-                echo -ne "\n "
+                printf '\n '
             }
-            [[ ! $counter = 0 ]] && echo -ne " $c_grey|$c_clear "
-            printf "%${left_gap}s$c_yellow%s$c_clear%${right_gap}s" "" "$script" ""
-            counter=$(expr $counter + 1)
+            printf "%${left_gap}s%s%${right_gap}s" "" "$c_y$script$c_c" ""
+            unset scriptwidth left_gap right_gap
+            (( counter++ ))
         done
-        echo -e '\n'
-    } || {
-        echo -n "$list_title:"
-        for script in ${script_list[@]}; do
-            echo -n " $script"
+        printf '\n\n'
+    else
+        printf '%s' "$list_title:"
+        for script in "${script_list[@]}"; do
+            printf '%s' " $script"
         done
-        echo
-    }
+        printf '\n'
+    fi
 }
 
 # LIST SCRIPTS: Output a list of the working scripts
@@ -503,9 +498,34 @@ function list_scripts {
     [[ -f "$cjdscript_rootdir/bin/cjdroute" ]] \
         || unset binaries
 
-    # Add whitespace if this isn't inside a pipe
-    [[ -t 1 ]] \
-        && echo
+    # Calculate the width of each column if tput is available
+    colwidth=0
+    if [[ -t 1 ]] && type -P tput >/dev/null 2>&1; then
+        # Find the column width (the length of the longest script name + 1 for spacing)
+        allscripts=( ${bash_scripts[@]} ${binaries[@]} ${nodejs_scripts[@]} ${python2_scripts[@]} )
+        for script in "${allscripts[@]}"; do
+            scriptwidth=$(wc -c <<< "$script")
+            if (( scriptwidth > colwidth )); then
+                colwidth="$scriptwidth"
+            fi
+        done
+        colwidth=$(( colwidth + 3 ))
+
+        # Find the number of scripts that can be squeezed on a single line
+        scripts_per_line=1
+        termwidth="$(tput cols)"
+        while (( (( (( scripts_per_line + 1 )) * colwidth )) < (( termwidth - 2 )) )); do
+            (( scripts_per_line++ ))
+        done
+        colwidth=$(( colwidth + 6 ))
+        while (( (( scripts_per_line * (( colwidth + 1 )) )) < (( termwidth - 2 )) )); do
+            (( colwidth++ ))
+        done
+        colwidth=$(( colwidth - 3 ))
+
+        # Add an extra blank line before pretty printing
+        printf '\n'
+    fi
 
     # List Bash scripts
     display_scriptlist "BASH SCRIPTS" "${bash_scripts[@]}"
@@ -524,62 +544,73 @@ function list_scripts {
 
 # HELP: Output usage information and the list of valid options
 function cjdscript_help {
-    echo -e "\n${c_blue}USAGE${c_clear}\n  $c_red$script_name$c_clear $c_grey[${c_green}OPTION$c_grey]$c_clear\n  $c_red$script_name$c_clear $c_grey[${c_magenta}SCRIPT$c_grey]$c_clear $c_grey[${c_green}OPTION$c_grey]$c_clear $c_grey[${c_green}OPTION...$c_grey]$c_clear\n"
-    echo -e "${c_blue}OPTIONS$c_clear"
-    echo -e "  $c_white-u $c_grey| $c_white--update$c_clear   update/setup symlinks, libs and scripts"
-    echo -e "  $c_white-v $c_grey| $c_white--verbose$c_clear  run with the update command for verbose output"
-    echo -e "  $c_white-l $c_grey| $c_white--list$c_clear     display the list of working scripts"
-    echo -e "  $c_white-h $c_grey| $c_white--help$c_clear     show this help and exit\n"
-    exit $1
+    local leftcol_width=41
+    printf '\n%s\n  %s\n  %s\n\n' "${c_b}USAGE${c_c}" "$c_r$script_name$c_c $c_d[${c_g}OPTION$c_d]$c_c" "$c_r$script_name$c_c $c_d[${c_m}SCRIPT$c_d]$c_c $c_d[${c_g}OPTION$c_d]$c_c $c_d[${c_g}OPTION...$c_d]$c_c"
+    printf '%s\n' "${c_b}OPTIONS$c_c"
+    printf "  %-${leftcol_width}s%s\n" "$c_w-u $c_d| $c_w--update$c_c" 'update/setup symlinks, libs and scripts'
+    printf "  %-${leftcol_width}s%s\n" "$c_w-v $c_d| $c_w--verbose$c_c" 'run with the update command for verbose output'
+    printf "  %-${leftcol_width}s%s\n" "$c_w-l $c_d| $c_w--list$c_c" 'display the list of working scripts'
+    printf "  %-${leftcol_width}s%s\n\n" "$c_w-h $c_d| $c_w--help$c_c" 'show this help and exit'
+    exit "$1"
 }
 
+# Run the exit function if ctrl-c is received
+trap 'quit' SIGINT SIGQUIT
+
 # Display a warning if an update is needed provided cjdscript is not in a pipe
+unset update_warning
 [[ -t 1 ]] && [[ -d "$cjdscript_rootdir" ]] && {
     if [ ! -d "$cjdscript_rootdir/download/cjdns" ] \
         || [ ! -d "$cjdscript_rootdir/bin" ] \
+        || [ ! -d "$cjdscript_rootdir/lib" ] \
         || [ ! -f "$cjdscript_rootdir/.dirver" ] \
-        || [ ! $(cat "$cjdscript_rootdir/.dirver") = "$cjdscript_version" ]
+        || [ ! "$(<"$cjdscript_rootdir/.dirver")" = "$cjdscript_version" ]
     then
-        echo -e "\n$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear The $c_red$script_name$c_clear root is out of date! (to update: $c_red$script_name$c_clear $c_white-u $c_grey| $c_white--update$c_clear)"
+        update_warning=1
     fi
 }
 
 # Unset config variables then parse any input
 unset trigger_list trigger_update
 
-# Display the list of working scripts if no input is given
-[[ -z "$1" ]] && [[ -d "$cjdscript_rootdir" ]] \
-    && list_scripts
+if [ -n "$1" ]; then
+    while [ -n "$1" ]; do
+        case "$1" in
+            -h|--help)
+                cjdscript_help 0
+                ;;
+            -l|--list)
+                trigger_list=1
+                shift
+                ;;
+            -u|--update)
+                unset update_warning
+                trigger_update=1
+                shift
+                ;;
+            -v|--verbose)
+                unset silent_output
+                shift
+                ;;
+            *)
+                # Exit with an error if the argument isn't a valid script or one of the options above
+                [[ -f "$cjdscript_rootdir/bin/$1" ]] || {
+                    printf '\n%s\n' "$c_b==>$c_c ${c_r}ERROR:$c_c $1 is not a valid command" >&2
+                    cjdscript_help 1
+                }
+                # Run the script with any arguments and exit with the script's completion status
+                "$@"
+                exit "$?"
+                ;;
+        esac
+    done
+elif [[ -d "$cjdscript_rootdir/bin" ]]; then
+    list_scripts
+fi
 
-while [ -n "$1" ]; do
-    case "$1" in
-        -h|--help)
-            cjdscript_help 0
-            ;;
-        -l|--list)
-            trigger_list=1
-            shift
-            ;;
-        -u|--update)
-            trigger_update=1
-            shift
-            ;;
-        -v|--verbose)
-            unset silent_output
-            shift
-            ;;
-        *)
-            # Exit with an error if the argument isn't a valid script or one of the options above
-            [[ -f "$cjdscript_rootdir/bin/$1" ]] || {
-                echo -e "\n$c_blue==>$c_clear ${c_red}ERROR:$c_clear $1 is not a valid command" >&2
-                cjdscript_help 1
-            }
-            # Run the script with any arguments and exit with the script's completion status
-            "$@"
-            exit $?
-            ;;
-    esac
-done
+# Warn the user about needing to update if they haven't already attempted to do so
+[[ -n "$update_warning" ]] \
+    && printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c The $c_r$script_name$c_c root is out of date! (to update: $c_r$script_name$c_c $c_w-u $c_d| $c_w--update$c_c)"
 
 # List the scripts if $trigger_list is set
 [[ -n "$trigger_list" ]] \
@@ -588,10 +619,10 @@ done
 # Prompt user to ensure an update is intentional then run setup_scripts
 if [ -n "$trigger_update" ] || [ ! -d "$cjdscript_rootdir" ]; then
     [[ -d "$cjdscript_rootdir" ]] && {
-        echo -ne "\n$c_blue==>$c_clear ${c_yellow}WARNING:$c_clear Update the root filesystem @ $c_white$cjdscript_rootdir$c_clear? (${c_blue}YES$c_clear to confirm): "
+        printf '%s' "$c_b==>$c_c ${c_y}WARNING:$c_c Update the root filesystem @ $c_w$cjdscript_rootdir$c_c? (${c_b}YES$c_c to confirm): "
         read choice
-        [[ ! "$choice" = 'YES' ]] && {
-            echo -e "$c_blue==>$c_clear The ${c_white}cjdscript$c_clear root will ${c_underline}not$c_clear be updated"
+        [[ "$choice" = 'YES' ]] || {
+            printf '%s\n' "$c_b==>$c_c The ${c_w}cjdscript$c_c root will ${c_u}not$c_c be updated"
             exit 0
         }
     }
