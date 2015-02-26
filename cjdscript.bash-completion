@@ -7,7 +7,9 @@
 
 # Obtains the list of working scripts from cjdscript
 _cjdscript_scriptlist() {
-    cjdscript -l | sed 's|^[^:]*: ||'
+    while read -r; do
+        printf '%s ' "${REPLY/*:}"
+    done < <(cjdscript -l)
 }
 
 # The bash-completion function for cjdscript
@@ -21,12 +23,12 @@ _cjdscript() {
         || return
 
     # Provide the list of scripts matching the current input
-    [[ $COMP_CWORD = 1 ]] && {
+    if (( COMP_CWORD == 1 )); then
         COMPREPLY=( $( compgen -W '$( _cjdscript_scriptlist )' -- "$cur" ) )
-    } || {
+    else
         compopt -o filenames
-        COMPREPLY=( $(compgen -f -- $cur) )
-    }
+        COMPREPLY=( $(compgen -f -- "$cur") )
+    fi
 } &&
 complete -F _cjdscript cjdscript
 
