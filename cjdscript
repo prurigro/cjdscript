@@ -2,7 +2,7 @@
 #
 # cjdscript | Deploy and run the collection of working tools included with cjdns
 #
-# Version 10.1
+# Version 10.2
 #
 # Written by Kevin MacMartin
 # Licensed under the GPLv3
@@ -50,9 +50,34 @@ silent_output=">/dev/null 2>&1"
 export PATH="$cjdscript_rootdir/bin:$PATH"
 export PYTHONPATH="$cjdscript_rootdir/lib/python2.7/site-packages/"
 
-function quit() {
+# Display a message and exit with an error when the user quits using signals
+function force_quit {
     printf '\n%s\n' "${c_w}Quitting...$c_c"
     exit 1
+}
+
+# Return true if a file exists in $1 that has a name containing $2
+function file_match {
+    for each in "$1/"*; do
+        [[ "${each/*\/}" =~ $2 ]] \
+            && return 0
+    done
+    return 1
+}
+
+# Remove old python site-packages matching the passed argument
+function removeold_sitepkgs {
+    declare -a old_files=()
+    for each in "$cjdscript_rootdir/lib/python2.7/site-packages/"*; do
+        [[ "${each/*\/}" =~ ${1/-*} ]] \
+            && old_files=( "${old_files[@]}" "$each" )
+    done
+    [[ -n "${old_files[*]}" ]] && {
+        for pyobject in "${old_files[@]}"; do
+            rm -rf "$pyobject"
+        done
+    }
+    unset old_files
 }
 
 # BASH SETUP: Triggered by setup_scripts to configure supported bash scripts
@@ -104,7 +129,7 @@ function setup_node {
         ln -sf "$cjdscript_rootdir/download/cjdns/contrib/nodejs/cjdnsadmin" "$cjdscript_rootdir/cjdnsadmin"
 
         # Setup admin-panel launcher script
-        if type -P npm >/dev/null 2>&1 && [[ -d "$cjdscript_rootdir/download/cjdns/contrib/nodejs/admin" ]]; then
+        if type -P npm >/dev/null && [[ -d "$cjdscript_rootdir/download/cjdns/contrib/nodejs/admin" ]]; then
             pushd "$cjdscript_rootdir/download/cjdns/contrib/nodejs/admin" >/dev/null
             npm install >/dev/null 2>&1
             popd >/dev/null
@@ -187,14 +212,8 @@ function setup_python2 {
         cd "$cjdscript_rootdir/download"
 
         # SETUPTOOLS: Download, build and install unless the current version is installed
-        if [[ ! $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_setuptools*") ]]; then
-            old_files=( $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "${pyinfo_setuptools/-*}*") )
-            [[ -n "${old_files[*]}" ]] && {
-                for pyobject in "${old_files[@]}"; do
-                    rm -rf "$pyobject"
-                done
-            }
-
+        if ! file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_setuptools"; then
+            removeold_sitepkgs "$pyinfo_setuptools"
             printf '%s' "$c_b==>$c_c Installing ${c_w}python2$c_c library: ${c_y}setuptools${c_c}... "
             [[ -d setuptools ]] && rm -rf setuptools
             wget -q -O - $pyurl_setuptools | tar -xz
@@ -204,7 +223,7 @@ function setup_python2 {
                 eval "$python2_binpath" setup.py install --prefix="$cjdscript_rootdir" $silent_output
                 cd "$cjdscript_rootdir/download"
                 rm -rf setuptools
-                if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_setuptools*") ]]; then
+                if file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_setuptools"; then
                     printf '%s\n' "${c_g}DONE!$c_c"
                 else
                     printf '%s\n' "${c_r}FAILED:$c_c an error occurred while installing" >&2
@@ -215,15 +234,10 @@ function setup_python2 {
             fi
         fi
 
-        if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_setuptools*") ]]; then
+        if file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_setuptools"; then
             # NETWORKX: Download, build and install unless the current version is installed
-            if [[ ! $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_networkx*") ]]; then
-                old_files=( $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "${pyinfo_networkx/-*}*") )
-                [[ -n "${old_files[*]}" ]] && {
-                    for pyobject in "${old_files[@]}"; do
-                        rm -rf "$pyobject"
-                    done
-                }
+            if ! file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_networkx"; then
+                removeold_sitepkgs "$pyinfo_networkx"
                 printf '%s' "$c_b==>$c_c Installing ${c_w}python2$c_c library: ${c_y}networkx${c_c}... "
                 [[ -d networkx ]] && rm -rf networkx
                 wget -q -O - $pyurl_networkx | tar -xz
@@ -233,7 +247,7 @@ function setup_python2 {
                     eval "$python2_binpath" setup.py install --prefix="$cjdscript_rootdir" $silent_output
                     cd "$cjdscript_rootdir/download"
                     rm -rf networkx
-                    if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_networkx*") ]]; then
+                    if file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_networkx"; then
                         printf '%s\n' "${c_g}DONE!$c_c"
                     else
                         printf '%s\n' "${c_r}FAILED:$c_c an error occurred while installing" >&2
@@ -245,13 +259,8 @@ function setup_python2 {
             fi
 
             # PYSIDE: Download, build and install unless the current version is installed
-            if [[ ! $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_pyside*") ]]; then
-                old_files=( $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "${pyinfo_pyside/-*}*") )
-                [[ -n "${old_files[*]}" ]] && {
-                    for pyobject in "${old_files[@]}"; do
-                        rm -rf "$pyobject"
-                    done
-                }
+            if ! file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_pyside"; then
+                removeold_sitepkgs "$pyinfo_pyside"
                 printf '%s' "$c_b==>$c_c Installing ${c_w}python2$c_c library: ${c_y}PySide${c_c}... "
                 if [[ $(type -P cmake) ]]; then
                     [[ $(type -P qmake-qt4) ]] \
@@ -265,7 +274,7 @@ function setup_python2 {
                             eval "$python2_binpath" setup.py install --prefix="$cjdscript_rootdir" $silent_output
                             cd "$cjdscript_rootdir/download"
                             rm -rf PySide
-                            if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_pyside*") ]]; then
+                            if file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_pyside"; then
                                 printf '%s\n' "${c_g}DONE!$c_c"
                             else
                                 printf '%s\n' "${c_r}FAILED:$c_c an error occurred while installing" >&2
@@ -287,13 +296,8 @@ function setup_python2 {
         fi
 
         # NUMPY: Download, build and install unless the current version is installed
-        if [[ ! $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_numpy*") ]]; then
-            old_files=( $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "${pyinfo_numpy/-*}*") )
-            [[ -n "${old_files[*]}" ]] && {
-                for pyobject in "${old_files[@]}"; do
-                    rm -rf "$pyobject"
-                done
-            }
+        if ! file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_numpy"; then
+            removeold_sitepkgs "$pyinfo_numpy"
             printf '%s' "$c_b==>$c_c Installing ${c_w}python2$c_c library: ${c_y}numpy${c_c}... "
             [[ -d numpy ]] && rm -rf numpy
             wget -q -O - $pyurl_numpy | tar -xz
@@ -304,7 +308,7 @@ function setup_python2 {
                 eval "$python2_binpath" setup.py install --prefix="$cjdscript_rootdir" $silent_output
                 cd "$cjdscript_rootdir/download"
                 rm -rf numpy
-                if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_numpy*") ]]; then
+                if file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_numpy"; then
                     printf '%s\n' "${c_g}DONE!$c_c"
                 else
                     printf '%s\n' "${c_r}FAILED:$c_c an error occurred while installing" >&2
@@ -316,13 +320,8 @@ function setup_python2 {
         fi
 
         # MATPLOTLIB: Download, build and install unless the current version is installed
-        if [[ ! $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_matplotlib*") ]]; then
-            old_files=( $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "${pyinfo_matplotlib/-*}*") )
-            [[ -n "${old_files[*]}" ]] && {
-                for pyobject in "${old_files[@]}"; do
-                    rm -rf "$pyobject"
-                done
-            }
+        if ! file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_matplotlib"; then
+            removeold_sitepkgs "$pyinfo_matplotlib"
             printf '%s' "$c_b==>$c_c Installing ${c_w}python2$c_c library: ${c_y}matplotlib${c_c}... "
             [[ -d matplotlib ]] && rm -rf matplotlib
             wget -q -O - $pyurl_matplotlib | tar -xz
@@ -333,7 +332,7 @@ function setup_python2 {
                 eval "$python2_binpath" setup.py install --prefix="$cjdscript_rootdir" $silent_output
                 cd "$cjdscript_rootdir/download"
                 rm -rf matplotlib
-                if [[ $(find "$cjdscript_rootdir/lib/python2.7/site-packages" -mindepth 1 -maxdepth 1 -name "$pyinfo_matplotlib*") ]]; then
+                if file_match "$cjdscript_rootdir/lib/python2.7/site-packages" "$pyinfo_matplotlib"; then
                     printf '%s\n' "${c_g}DONE!$c_c"
                 else
                     printf '%s\n' "${c_r}FAILED:$c_c an error occurred while installing" >&2
@@ -348,7 +347,7 @@ function setup_python2 {
         printf '%s\n' "$c_b==>$c_c Linking ${c_w}python2$c_c scripts"
         cd "$cjdscript_rootdir/bin"
         for python2_scriptname in "${python2_scripts[@]}"; do
-            if [ -f "$cjdscript_rootdir/download/cjdns/contrib/python/$python2_scriptname" ]; then
+            if [[ -f "$cjdscript_rootdir/download/cjdns/contrib/python/$python2_scriptname" ]]; then
                 ln -sf "$cjdscript_rootdir/download/cjdns/contrib/python/$python2_scriptname" "$cjdscript_rootdir/bin/$python2_scriptname"
             else
                 printf '%s\n' "$c_b==>$c_c ${c_y}WARNING:$c_c $python2_scriptname does not exist and won't be installed"
@@ -439,7 +438,7 @@ function setup_scripts {
 }
 
 # Takes a title and list of scripts prints them stylishly in a terminal, or lists them in a pipe
-function display_scriptlist() {
+function display_scriptlist {
     # Store the title in $list_title then remove it from $@
     list_title="$1"
     shift
@@ -455,18 +454,18 @@ function display_scriptlist() {
 
     # The tput command is available and cjdscript is not in a pipe if colwidth > 0
     if (( colwidth > 0 )); then
-        local titlewidth=$(( $(wc -c <<< "$list_title") + 6 ))
-        local left_gap=$(( (( (( colwidth - titlewidth )) / 2 )) + 1 ))
-        local right_gap=$(( (( colwidth - titlewidth )) - left_gap ))
+        local titlewidth=$(( ${#list_title} + 6 ))
+        local left_gap=$(( ( ( colwidth - titlewidth ) / 2 ) + 1 ))
+        local right_gap=$(( ( colwidth - titlewidth ) - left_gap ))
         printf "%${left_gap}s%s%${right_gap}s\n" "" "$c_b$list_title$c_c" ""
         unset titlewidth left_gap right_gap
 
         counter=0
         printf ' '
         for script in "${script_list[@]}"; do
-            local scriptwidth=$(( $(wc -c <<< "$script") + 6 ))
-            local left_gap=$(( (( colwidth - scriptwidth )) / 2 ))
-            local right_gap=$(( (( colwidth - scriptwidth )) - left_gap ))
+            local scriptwidth=$(( ${#script} + 6 ))
+            local left_gap=$(( ( colwidth - scriptwidth ) / 2 ))
+            local right_gap=$(( ( colwidth - scriptwidth ) - left_gap ))
             (( counter > 0 )) && (( counter < scripts_per_line )) \
                 && printf '%s' " $c_d|$c_c "
             (( counter >= scripts_per_line )) && {
@@ -500,11 +499,11 @@ function list_scripts {
 
     # Calculate the width of each column if tput is available
     colwidth=0
-    if [[ -t 1 ]] && type -P tput >/dev/null 2>&1; then
+    if [[ -t 1 ]] && type -P tput >/dev/null; then
         # Find the column width (the length of the longest script name + 1 for spacing)
         allscripts=( ${bash_scripts[@]} ${binaries[@]} ${nodejs_scripts[@]} ${python2_scripts[@]} )
         for script in "${allscripts[@]}"; do
-            scriptwidth=$(wc -c <<< "$script")
+            scriptwidth=${#script}
             if (( scriptwidth > colwidth )); then
                 colwidth="$scriptwidth"
             fi
@@ -514,11 +513,11 @@ function list_scripts {
         # Find the number of scripts that can be squeezed on a single line
         scripts_per_line=1
         termwidth="$(tput cols)"
-        while (( (( (( scripts_per_line + 1 )) * colwidth )) < (( termwidth - 2 )) )); do
+        while (( ( ( scripts_per_line + 1 ) * colwidth ) < ( termwidth - 2 ) )); do
             (( scripts_per_line++ ))
         done
         colwidth=$(( colwidth + 6 ))
-        while (( (( scripts_per_line * (( colwidth + 1 )) )) < (( termwidth - 2 )) )); do
+        while (( ( scripts_per_line * ( colwidth + 1 ) ) < ( termwidth - 2 ) )); do
             (( colwidth++ ))
         done
         colwidth=$(( colwidth - 3 ))
@@ -555,7 +554,7 @@ function cjdscript_help {
 }
 
 # Run the exit function if ctrl-c is received
-trap 'quit' SIGINT SIGQUIT
+trap force_quit SIGINT SIGQUIT
 
 # Display a warning if an update is needed provided cjdscript is not in a pipe
 unset update_warning
